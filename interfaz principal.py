@@ -15,8 +15,7 @@ class InterfazPrincipal(QMainWindow):
         self.widgets = [] # Lista para mantener los componentes del juego
         self.setStyleSheet('background-color: LightYellow; color: FireBrick; font: Consolas;')
 
-        # nombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
-        nombreUsuario = 'Kike'
+        nombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
         jugadoresLista = ["kike", "Jugador 2", "Jugador 3"]
 
         self.contenedorPrincipal = QGridLayout(self.widgetPrincipal)
@@ -50,9 +49,10 @@ class InterfazPrincipal(QMainWindow):
             if nombreUsuario != self.diccionarioDeJugadores[jugador].nombre:
                 tableroEnemigo = QTableros(scrollEnemigos, False)
                 tableroEnemigo.etNombre.setText(self.diccionarioDeJugadores[jugador].nombre)
+                tableroEnemigo.etNombre.clicked.connect(lambda checked, tablero=tableroEnemigo: self.mostrarTablero(tablero))
                 self.layout = contenedorEnemigosH.layout()
                 self.layout.insertWidget(0, tableroEnemigo)
-                tableroEnemigo.boton.clicked.connect(lambda checked, tablero=tableroEnemigo: self.mostrarTablero(tablero))
+                # tableroEnemigo.boton.clicked.connect(lambda checked, tablero=tableroEnemigo: self.mostrarTablero(tablero))
 
         contenedorJugadores = QVBoxLayout()
         for i in jugadoresLista:
@@ -63,9 +63,9 @@ class InterfazPrincipal(QMainWindow):
         #Componentes de los tableros
         self.contenedorPrincipal.addLayout(contenedorJugadores, 0, 0)
         self.contenedorPrincipal.addWidget(self.chat, 1, 0)
-        self.contenedorPrincipal.addWidget(tableroPropio, 1, 1)
+        self.contenedorPrincipal.addWidget(tableroPropio, 1, 1, Qt.AlignCenter)
         self.contenedorPrincipal.addWidget(scrollEnemigos, 0, 1)
-        self.contenedorPrincipal.addWidget(zonaHabilidades, 0, 3)
+        self.contenedorPrincipal.addWidget(zonaHabilidades, 0, 2)
         self.widgets.append(jugador)
         self.widgets.append(tableroPropio)
         self.widgets.append(scrollEnemigos)

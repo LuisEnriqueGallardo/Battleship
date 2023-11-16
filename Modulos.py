@@ -19,13 +19,15 @@ class QTableros(QWidget):
         self.activarBotones = botonesActivos
         self.barcosActivos = barcosActivos
         self.casillas = []
-        self.etNombre = QLabel('Jugador X')
+        self.etNombre = QPushButton('Jugador X')
+        self.etNombre.setFlat(True)
         self.etNombre.setFont(fuente)
         self.nombre = self.etNombre.text()
         contenedorTitulo = QVBoxLayout(self)
 
-        contenedorPrincipal = QPushButton()
-        contenedorPrincipal.setFixedSize(400, 400)
+        contenedorPrincipal = QFrame()
+        # contenedorPrincipal.setDisabled(True)
+        contenedorPrincipal.setFixedSize(390, 390)
 
         contenedorTitulo.addWidget(self.etNombre)
         contenedorTitulo.addWidget(contenedorPrincipal)
