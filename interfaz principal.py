@@ -2,6 +2,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel
 from PyQt5.QtCore import Qt
 from Modulos import QChat, QTableros, QJugador, QNombreUsuario, QHabilidades
+from PyQt5.QtGui import QFont
 
 class InterfazPrincipal(QMainWindow):
     """Interfaz Principal del juego donde se conectarán los modulos para iniciar el juego
@@ -15,8 +16,9 @@ class InterfazPrincipal(QMainWindow):
         self.widgets = [] # Lista para mantener los componentes del juego
         self.setStyleSheet('background-color: LightYellow; color: FireBrick; font: Consolas;')
 
-        nombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
-        jugadoresLista = ["kike", "Jugador 2", "Jugador 3"]
+        # nombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
+        nombreUsuario = 'Kike'
+        jugadoresLista = ["Kike", "UsuarioX", "UsuarioY"]
 
         self.contenedorPrincipal = QGridLayout(self.widgetPrincipal)
 
@@ -57,6 +59,7 @@ class InterfazPrincipal(QMainWindow):
         contenedorJugadores = QVBoxLayout()
         for i in jugadoresLista:
             nuevoJugador = QLabel(i)
+            nuevoJugador.setFont(QFont('Consolas', 12))
             nuevoJugador.setStyleSheet('border: 1px solid green; font: Consolas;')
             contenedorJugadores.addWidget(nuevoJugador)
 
@@ -65,7 +68,7 @@ class InterfazPrincipal(QMainWindow):
         self.contenedorPrincipal.addWidget(self.chat, 1, 0)
         self.contenedorPrincipal.addWidget(tableroPropio, 1, 1, Qt.AlignCenter)
         self.contenedorPrincipal.addWidget(scrollEnemigos, 0, 1)
-        self.contenedorPrincipal.addWidget(zonaHabilidades, 0, 2)
+        self.contenedorPrincipal.addWidget(zonaHabilidades, 0, 2, 2, 1, Qt.AlignCenter)
         self.widgets.append(jugador)
         self.widgets.append(tableroPropio)
         self.widgets.append(scrollEnemigos)
@@ -77,6 +80,7 @@ class InterfazPrincipal(QMainWindow):
             ventana_tablero = TableroEnGrande(self, tablero)
             self.ventana_tablero_abierta = ventana_tablero
             ventana_tablero.exec()
+
 
 class TableroEnGrande(QDialog):
     """Creador de tablero en grande para manipular el mismo

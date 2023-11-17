@@ -1,8 +1,9 @@
 import typing
 import random
-from PyQt5.QtWidgets import QVBoxLayout, QWidget, QTextEdit, QLineEdit, QGridLayout, QPushButton, QSizePolicy, QLabel, QDialog, QScrollArea, QFrame
+from PyQt5.QtWidgets import QVBoxLayout, QWidget, QTextEdit, QLineEdit, QToolButton, QGridLayout, QPushButton, QSizePolicy, QLabel, QDialog, QScrollArea, QFrame
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtGui import QFont, QPixmap, QIcon
+from PyQt5.QtCore import QSize
 
 fuente = QFont('Consolas', 12)
 
@@ -73,33 +74,77 @@ class QJugador(QWidget):
         self.tablero = tablero
 
 class QHabilidades(QWidget):
-    """Habilidades de los jugadores definidas con una descripción en cada una
-
-    Args:
-        parent = None
-    """
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setFixedSize(400, 900)
+        self.habilidades = {}
 
         contenedorEnemigos = QFrame()
-        scrollEnemigos = QScrollArea(self)
+        scrollEnemigos = QScrollArea()
         scrollEnemigos.setWidgetResizable(True)
         scrollEnemigos.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scrollEnemigos.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
+
         layoutEnemigos = QVBoxLayout(contenedorEnemigos)
-        añadir = layoutEnemigos.layout()
+        self.añadir = layoutEnemigos.layout()
 
         variablesDePrueba = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
         for i in range(3):
-            asd = QLabel()
-            random.shuffle(variablesDePrueba)
-            asd.setPixmap(QPixmap(f'Habilidades/{variablesDePrueba[random.randint(0, 8)]}.png'))
-            asd.setScaledContents(True)
-            asd.setFixedSize(200, 200)
-            añadir.addWidget(asd)
+            botonDeHabilidad = QToolButton()
+            botonDeHabilidad.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            eleccionAleatoria = random.choice(variablesDePrueba)
+            botonDeHabilidad.setIcon(QIcon(f'Habilidades/{eleccionAleatoria}.png'))
+            botonDeHabilidad.setIconSize(QSize(300, 400))
+            self.habilidades[eleccionAleatoria] = (botonDeHabilidad, eleccionAleatoria)
+            botonDeHabilidad.clicked.connect(lambda checked, habilidad=botonDeHabilidad, nombre=eleccionAleatoria: self.mostrarHabilidad(habilidad, nombre=nombre))
+            
+            self.añadir.addWidget(botonDeHabilidad)
 
         scrollEnemigos.setWidget(contenedorEnemigos)
+
+        layoutPrincipal = QVBoxLayout(self)
+        layoutPrincipal.addWidget(scrollEnemigos)
+
+        self.ventana_habilidad_abierta = None
+
+    def mostrarHabilidad(self, habilidad, nombre):
+        if self.ventana_habilidad_abierta is None:
+            nombreIcono = self.habilidades[nombre][1]
+            self.HabilidadMaximizada = HabilidadEnGrande(self, habilidad, nombreIcono)
+            self.HabilidadMaximizada.exec()
+
+class HabilidadEnGrande(QDialog):
+    """Creador de tablero en grande para manipular el mismo
+    """
+    def __init__(self, parent=None, habilidad = QWidget, nombre = ''):
+        super().__init__(parent)
+        self.setWindowTitle(str(nombre))
+        self.setFixedSize(500, 500)
+        self.habilidad = habilidad
+        contenedor = QVBoxLayout()
+        
+        botonSalir = QPushButton("Volver")
+        botonSalir.clicked.connect(self.cerrarDialogo)
+
+        botonUsar = QPushButton("Usar")
+        botonUsar.clicked.connect(self.usarHabilidad)
+
+        self.setWindowFlag(Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+
+        contenedor.addWidget(habilidad)
+        contenedor.addWidget(botonUsar)
+        contenedor.addWidget(botonSalir)
+        self.setLayout(contenedor)
+
+    def cerrarDialogo(self):
+        self.close()
+        self.parent().añadir.insertWidget(0, self.habilidad)
+        self.parent().ventana_habilidad_abierta = None
+
+    def usarHabilidad(self):
+        print("Usar habilidad")
 
 class QChat(QWidget):
     """Chat para la interacción entre jugadores
