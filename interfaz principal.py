@@ -1,3 +1,4 @@
+import random
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel
 from PyQt5.QtCore import Qt
@@ -13,15 +14,20 @@ class InterfazPrincipal(QMainWindow):
         self.setMinimumSize(1300, 800)
         self.widgetPrincipal = QWidget()
         self.setContentsMargins(10, 10, 10, 20)
-        self.widgets = [] # Lista para mantener los componentes del juego
         self.setStyleSheet('background-color: LightYellow; color: FireBrick; font: Consolas;')
 
-        # nombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
+        # Lista para mantener los componentes del juego
+        self.widgets = [] 
+
+        # NombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
         nombreUsuario = 'Kike'
+        
+        # Lista de los jugadores activos que pertenecerán al juego.
         jugadoresLista = ["Kike", "UsuarioX", "UsuarioY"]
 
         self.contenedorPrincipal = QGridLayout(self.widgetPrincipal)
 
+        # Contenedor donde se generan los cuadros enemigos
         contenedorEnemigos = QFrame()
         scrollEnemigos = QScrollArea(contenedorEnemigos)
         scrollEnemigos.setStyleSheet('background: SandyBrown;')
@@ -32,38 +38,46 @@ class InterfazPrincipal(QMainWindow):
         layoutEnemigos = QHBoxLayout(contenedorEnemigosH)
         scrollEnemigos.setWidget(contenedorEnemigosH)
 
+        # Modulo del chat
         self.chat = QChat(None, nombreUsuario)
         self.chat.setFixedSize(300, 300)
 
+        # Tablero propio del usuario
         tableroPropio = QTableros()
         tableroPropio.etNombre.setText(nombreUsuario)
 
+        # Tablero con las habilidades del jugador
         zonaHabilidades = QHabilidades()
 
+        # Variables para operaciones futuras
         self.diccionarioDeJugadores = {}
         self.ventana_tablero_abierta = None
 
+        # Creación de los jugadores en un diccionario
         for player in jugadoresLista:
             jugadoraIngresar = QJugador(None, player, QTableros(None, False))
             self.diccionarioDeJugadores[player] = jugadoraIngresar
 
+        # Creación de los tableros enemigos en el contenedor de los mismos
         for jugador in self.diccionarioDeJugadores:
             if nombreUsuario != self.diccionarioDeJugadores[jugador].nombre:
                 tableroEnemigo = QTableros(scrollEnemigos, False)
                 tableroEnemigo.etNombre.setText(self.diccionarioDeJugadores[jugador].nombre)
+                tableroEnemigo.etNombre.setToolTip(f'Click para ver el tablero de {tableroEnemigo.etNombre.text()}')
                 tableroEnemigo.etNombre.clicked.connect(lambda checked, tablero=tableroEnemigo: self.mostrarTablero(tablero))
                 self.layout = contenedorEnemigosH.layout()
                 self.layout.insertWidget(0, tableroEnemigo)
                 # tableroEnemigo.boton.clicked.connect(lambda checked, tablero=tableroEnemigo: self.mostrarTablero(tablero))
 
+        # Creación de los nombres de los jugadores en el contenedor
         contenedorJugadores = QVBoxLayout()
+        coloresNombres = ['red', 'MidnightBlue', 'YellowGreen', 'Gold', 'Indigo', 'Orange', 'PaleVioletRed', 'SaddleBrown', 'SlateGray', 'Snow']
         for i in jugadoresLista:
             nuevoJugador = QLabel(i)
-            nuevoJugador.setFont(QFont('Consolas', 12))
-            nuevoJugador.setStyleSheet('border: 1px solid green; font: Consolas;')
+            nuevoJugador.setStyleSheet(f'font: Consolas; font-size: 40px; color: {random.choice(coloresNombres)};')
             contenedorJugadores.addWidget(nuevoJugador)
 
-        #Componentes de los tableros
+        #Componentes de los tableros e importación a la interfaz
         self.contenedorPrincipal.addLayout(contenedorJugadores, 0, 0)
         self.contenedorPrincipal.addWidget(self.chat, 1, 0)
         self.contenedorPrincipal.addWidget(tableroPropio, 1, 1, Qt.AlignCenter)
@@ -75,6 +89,7 @@ class InterfazPrincipal(QMainWindow):
         self.widgets.append(zonaHabilidades)
         self.setCentralWidget(self.widgetPrincipal)
 
+    # Abrir un tablero en grande para operar en el mismo y evitar mas de una apertura de este
     def mostrarTablero(self, tablero):
         if self.ventana_tablero_abierta is None:
             ventana_tablero = TableroEnGrande(self, tablero)
@@ -83,13 +98,15 @@ class InterfazPrincipal(QMainWindow):
 
 
 class TableroEnGrande(QDialog):
-    """Creador de tablero en grande para manipular el mismo
+    """Creador de tablero en grande para manipularlo
     """
     def __init__(self, parent=None, tablero = QWidget):
         super().__init__(parent)
         self.setWindowTitle(f"Tablero de: {tablero.etNombre.text()}")
         self.setFixedSize(500, 500)
         self.tablero = tablero
+
+        # Construcción del tablero en grande
         contenedor = QVBoxLayout()
         
         botonSalir = QPushButton("Volver")
@@ -101,6 +118,7 @@ class TableroEnGrande(QDialog):
         contenedor.addWidget(botonSalir)
         self.setLayout(contenedor)
 
+    # Cerrar el tablero en grande
     def cerrarDialogo(self):
         self.close()
         self.parent().layout.insertWidget(0, self.tablero)

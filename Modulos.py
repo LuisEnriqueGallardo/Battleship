@@ -17,6 +17,8 @@ class QTableros(QWidget):
     """
     def __init__(self, parent=None, botonesActivos = True, barcosActivos = []):
         super().__init__(parent)
+
+        # Variables para operaciones futuras
         self.activarBotones = botonesActivos
         self.barcosActivos = barcosActivos
         self.casillas = []
@@ -37,6 +39,8 @@ class QTableros(QWidget):
         cuadricula.setSpacing(0)
 
         self.boton = contenedorPrincipal
+
+        # Creación de los botones para el tablero y la cuadricula, además de la configuración individual de cada uno
         for i in range(10):
             for j in range(10):
                 botonC = QPushButton()
@@ -49,15 +53,13 @@ class QTableros(QWidget):
                 cuadricula.addWidget(botonC, i, j)
                 self.casillas.append(botonC)
     
+    # TODO Crear la función para elegir los barcos
     def elegirBarcos(self):
         numero = 0
         for i in self.casillas:
             print(numero)
         for i in range(len(self.barcosActivos)):
             pass
-
-    def botonClick(self, i, j):
-        print(f"Hola {chr(ord('A') + i)}{j}")
 
 class QJugador(QWidget):
     """Objeto para los jugadores y sus atributos
@@ -74,11 +76,14 @@ class QJugador(QWidget):
         self.tablero = tablero
 
 class QHabilidades(QWidget):
+    """Contenedor de las habilidades de cada jugador
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(400, 900)
+        self.setFixedSize(380, 900)
         self.habilidades = {}
 
+        # Contenedor donde se generaran las habilidades
         contenedorEnemigos = QFrame()
         scrollEnemigos = QScrollArea()
         scrollEnemigos.setWidgetResizable(True)
@@ -89,16 +94,16 @@ class QHabilidades(QWidget):
         layoutEnemigos = QVBoxLayout(contenedorEnemigos)
         self.añadir = layoutEnemigos.layout()
 
+        # Creación de los botones para las habilidades y inicialización de 3 habilidades por defecto
         variablesDePrueba = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
         for i in range(3):
-            botonDeHabilidad = QToolButton()
-            botonDeHabilidad.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            botonDeHabilidad = QPushButton()
+            # botonDeHabilidad.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
             eleccionAleatoria = random.choice(variablesDePrueba)
             botonDeHabilidad.setIcon(QIcon(f'Habilidades/{eleccionAleatoria}.png'))
             botonDeHabilidad.setIconSize(QSize(300, 400))
             self.habilidades[eleccionAleatoria] = (botonDeHabilidad, eleccionAleatoria)
             botonDeHabilidad.clicked.connect(lambda checked, habilidad=botonDeHabilidad, nombre=eleccionAleatoria: self.mostrarHabilidad(habilidad, nombre=nombre))
-            
             self.añadir.addWidget(botonDeHabilidad)
 
         scrollEnemigos.setWidget(contenedorEnemigos)
@@ -108,10 +113,12 @@ class QHabilidades(QWidget):
 
         self.ventana_habilidad_abierta = None
 
+    # Función para mostrar la habilidad en grande y evitar una segunda apertura de la misma
     def mostrarHabilidad(self, habilidad, nombre):
         if self.ventana_habilidad_abierta is None:
             nombreIcono = self.habilidades[nombre][1]
             self.HabilidadMaximizada = HabilidadEnGrande(self, habilidad, nombreIcono)
+            self.ventana_habilidad_abierta = self.HabilidadMaximizada
             self.HabilidadMaximizada.exec()
 
 class HabilidadEnGrande(QDialog):
@@ -122,8 +129,10 @@ class HabilidadEnGrande(QDialog):
         self.setWindowTitle(str(nombre))
         self.setFixedSize(500, 500)
         self.habilidad = habilidad
+        self.habilidad.setStyleSheet("background-color: WhiteSmoke;")
         contenedor = QVBoxLayout()
         
+        # Botones para salir y usar la habilidad
         botonSalir = QPushButton("Volver")
         botonSalir.clicked.connect(self.cerrarDialogo)
 
@@ -138,11 +147,14 @@ class HabilidadEnGrande(QDialog):
         contenedor.addWidget(botonSalir)
         self.setLayout(contenedor)
 
+    # Cerrar la habilidad en grande
     def cerrarDialogo(self):
+        self.habilidad.setStyleSheet(None)
         self.close()
         self.parent().añadir.insertWidget(0, self.habilidad)
         self.parent().ventana_habilidad_abierta = None
 
+    # TODO Crear la función para usar la habilidad
     def usarHabilidad(self):
         print("Usar habilidad")
 
@@ -150,13 +162,15 @@ class QChat(QWidget):
     """Chat para la interacción entre jugadores
 
     Args:
-        parent: None
+        parent: QWidget
         nombreDeUsuario: '' (Nombre del jugador)
     """
     def __init__(self, parent=None, nombreDeUsuario = ''):
         super().__init__(parent)
+        self.setStyleSheet("background-color: WhiteSmoke;")
         self.nombreDeUsuario = nombreDeUsuario
         
+        # Creación de los componentes del chat
         contenedor = QVBoxLayout(self)
         self.chat_escritura = QLineEdit()
         self.chat_texto = QTextEdit()
@@ -170,6 +184,7 @@ class QChat(QWidget):
         contenedor.addWidget(self.chat_escritura)
         contenedor.addWidget(boton_enviar)
 
+    # Función para enviar mensajes
     def enviarMensaje(self):
         # nombre = QNombreUsuario().entradaNombre.text()
         mensaje = self.chat_escritura.text()
@@ -182,12 +197,13 @@ class QNombreUsuario(QDialog):
     """Ventana para el ingreso del nombre de usuario
 
     Args:
-        parent: None
+        parent: QWidget
     """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.entradaNombre = QLineEdit()
 
+    # Función para abrir el dialogo y obtener el nombre de usuario
     def abrirDialogo(self):
         dialogo = QDialog(self)
         dialogo.setWindowFlag(Qt.WindowCloseButtonHint, False)
@@ -207,4 +223,3 @@ class QNombreUsuario(QDialog):
 
         result = dialogo.exec_()
         return self.entradaNombre.text()
-        
