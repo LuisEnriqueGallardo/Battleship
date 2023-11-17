@@ -1,5 +1,5 @@
 import typing
-from PyQt5 import QtCore
+import random
 from PyQt5.QtWidgets import QVBoxLayout, QWidget, QTextEdit, QLineEdit, QGridLayout, QPushButton, QSizePolicy, QLabel, QDialog, QScrollArea, QFrame
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QPixmap
@@ -82,19 +82,24 @@ class QHabilidades(QWidget):
         super().__init__(parent)
 
         contenedorEnemigos = QFrame()
-        scrollEnemigos = QScrollArea(contenedorEnemigos)
+        scrollEnemigos = QScrollArea(self)
         scrollEnemigos.setWidgetResizable(True)
         scrollEnemigos.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scrollEnemigos.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        layoutEnemigos = QVBoxLayout(self)
+
+        layoutEnemigos = QVBoxLayout(contenedorEnemigos)
         añadir = layoutEnemigos.layout()
 
-        variablesDePrueba = ['Carta 1', 'Carta 2', 'Carta 3']
-        for i in variablesDePrueba:
-            asd = QLabel(i)
-            asd.setPixmap(QPixmap('CuadroHabilidades.png'))
+        variablesDePrueba = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
+        for i in range(3):
+            asd = QLabel()
+            random.shuffle(variablesDePrueba)
+            asd.setPixmap(QPixmap(f'Habilidades/{variablesDePrueba[random.randint(0, 8)]}.png'))
+            asd.setScaledContents(True)
             asd.setFixedSize(200, 200)
             añadir.addWidget(asd)
+
+        scrollEnemigos.setWidget(contenedorEnemigos)
 
 class QChat(QWidget):
     """Chat para la interacción entre jugadores
