@@ -1,8 +1,7 @@
-import typing
 import random
-from PyQt5.QtWidgets import QVBoxLayout, QWidget, QTextEdit, QLineEdit, QToolButton, QGridLayout, QPushButton, QSizePolicy, QLabel, QDialog, QScrollArea, QFrame
+from PyQt5.QtWidgets import QVBoxLayout, QWidget, QTextEdit, QLineEdit, QGridLayout, QPushButton, QSizePolicy, QDialog, QScrollArea, QFrame
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QPixmap, QIcon
+from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QSize
 
 fuente = QFont('Consolas', 12)
@@ -17,7 +16,6 @@ class QTableros(QWidget):
     """
     def __init__(self, parent=None, botonesActivos = True, barcosActivos = []):
         super().__init__(parent)
-
         # Variables para operaciones futuras
         self.activarBotones = botonesActivos
         self.barcosActivos = barcosActivos
@@ -202,6 +200,7 @@ class QNombreUsuario(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.entradaNombre = QLineEdit()
+        self.setWindowIcon(QIcon('Icono.png'))
 
     # Función para abrir el dialogo y obtener el nombre de usuario
     def abrirDialogo(self):

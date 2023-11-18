@@ -1,9 +1,9 @@
 import random
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel, QSizePolicy
 from PyQt5.QtCore import Qt
 from Modulos import QChat, QTableros, QJugador, QNombreUsuario, QHabilidades
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QIcon
 
 class InterfazPrincipal(QMainWindow):
     """Interfaz Principal del juego donde se conectarán los modulos para iniciar el juego
@@ -15,11 +15,12 @@ class InterfazPrincipal(QMainWindow):
         self.widgetPrincipal = QWidget()
         self.setContentsMargins(10, 10, 10, 20)
         self.setStyleSheet('background-color: LightYellow; color: FireBrick; font: Consolas;')
+        self.setWindowIcon(QIcon('Icono.png'))
 
         # Lista para mantener los componentes del juego
         self.widgets = [] 
 
-        # NombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
+        NombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
         nombreUsuario = 'Kike'
         
         # Lista de los jugadores activos que pertenecerán al juego.
@@ -71,7 +72,7 @@ class InterfazPrincipal(QMainWindow):
 
         # Creación de los nombres de los jugadores en el contenedor
         contenedorJugadores = QVBoxLayout()
-        coloresNombres = ['red', 'MidnightBlue', 'YellowGreen', 'Gold', 'Indigo', 'Orange', 'PaleVioletRed', 'SaddleBrown', 'SlateGray', 'Snow']
+        coloresNombres = ['red', 'MidnightBlue', 'YellowGreen', 'Gold', 'Indigo', 'Orange', 'PaleVioletRed', 'SaddleBrown', 'SlateGray', 'Teal', 'Tomato', 'Turquoise', 'Violet', 'Yellow']
         for i in jugadoresLista:
             nuevoJugador = QLabel(i)
             nuevoJugador.setStyleSheet(f'font: Consolas; font-size: 40px; color: {random.choice(coloresNombres)};')
