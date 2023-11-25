@@ -14,7 +14,7 @@ class QTableros(QWidget):
         botonesActivos = True (Activa los botones del tablero)
         barcosActivos = [] (Lista con los barcos de cada jugador (QJugador.barcos))
     """
-    def __init__(self, parent=None, botonesActivos = True, barcosActivos = []):
+    def __init__(self, parent=None, botonesActivos = True, barcosActivos = ['Acorazar', 'Ataque aereo', 'Bombardero', 'Cañon doble']):
         super().__init__(parent)
         # Variables para operaciones futuras
         self.activarBotones = botonesActivos
@@ -33,45 +33,59 @@ class QTableros(QWidget):
         contenedorTitulo.addWidget(self.etNombre)
         contenedorTitulo.addWidget(contenedorPrincipal)
 
-        cuadricula = QGridLayout(contenedorPrincipal)
-        cuadricula.setSpacing(0)
+        self.cuadricula = QGridLayout(contenedorPrincipal)
+        self.cuadricula.setSpacing(0)
 
         self.boton = contenedorPrincipal
 
-        # Creación de los botones para el tablero y la cuadricula, además de la configuración individual de cada uno
+        # Creación de los botones para el tablero y la self.cuadricula, además de la configuración individual de cada uno
         for i in range(10):
             for j in range(10):
                 botonC = QPushButton()
                 # botonC.setText(f"{chr(ord('A') + i)}{j}")
-                botonC.setStyleSheet("background-color: CornFlowerBlue; font-size: 20px; color: white; font-family: Calibri; border: 1px solid BurlyWood")
+                botonC.setStyleSheet("background-color: CornFlowerBlue; border: 1px solid BurlyWood")
                 botonC.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
                 if botonesActivos == False:
                     botonC.setEnabled(False)
-                botonC.clicked.connect(lambda state, i=i, j=j: self.botonClick(i, j))
-                cuadricula.addWidget(botonC, i, j)
+                # botonC.clicked.connect(lambda state, i=i, j=j: self.elegirBarcos(i, j))
+                botonC.clicked.connect(lambda checked, barcosDisponibles = self.barcosActivos: self.elegirBarcos(barcosDisponibles))
+                self.cuadricula.addWidget(botonC, i, j)
                 self.casillas.append(botonC)
+
+    def elegirBarcos(self, barcosDisponibles):
+        # BarcosDisponibles es la Lista de Barcos que tiene el jugador
+        for casilla in self.casillas:
+            casilla.setStyleSheet("background-color: Red; border: 1px solid BurlyWood")
+            casilla.setEnabled(True)
+            casilla.clicked.connect(lambda _, casilla=casilla: self.colocarBarcos(casilla))
     
-    # TODO Crear la función para elegir los barcos
-    def elegirBarcos(self):
-        numero = 0
-        for i in self.casillas:
-            print(numero)
-        for i in range(len(self.barcosActivos)):
-            pass
+    def colocarBarcos(self, botonElegido):
+        barcosElegidos = []
+        barcosElegidos.append(botonElegido)
+        for casilla in self.casillas:
+            if casilla != botonElegido:
+                casilla.setEnabled(False)
 
-class QJugador(QWidget):
-    """Objeto para los jugadores y sus atributos
+        botonElegido.setStyleSheet("background-color: Green; border: 1px solid BurlyWood")
+        botonElegido.setEnabled(True)
+        coord = self.casillas.index(botonElegido)
+        print(coord)
 
-    Args:
-        jugador: Nombre
-        QWidget: QTablero
-    """
-    def __init__(self, parent=None, jugador = '', tablero = QWidget):
-        super().__init__(parent)
-        self.nombre = jugador
-        self.habilidades = []
-        self.barcos = []
-        self.tablero = tablero
+        self.configurar_casilla(coord, 10, 0)
+        self.configurar_casilla(coord, 1, 1)
+        self.configurar_casilla(coord, -10, 2)
+        self.configurar_casilla(coord, -1, 3)
+
+    def configurar_casilla(self, coord, desplazamiento, direccion):
+        nueva_coord = coord + desplazamiento
+        if 0 <= nueva_coord <= 99 and (direccion == 0 or nueva_coord % 10 != 0) and (direccion == 1 or nueva_coord % 10 != 9):
+            self.casillas[nueva_coord].setEnabled(True)
+            self.casillas[nueva_coord].setStyleSheet("background-color: Green; border: 1px solid BurlyWood")
+            self.casillas[nueva_coord].clicked.connect(lambda _, casilla=self.casillas[nueva_coord]: self.guardarPosicionesDeBarcos(casilla))
+
+    def guardarPosicionesDeBarcos(self, barcoGuardado):
+        pass
+
 
 class QHabilidades(QWidget):
     """Contenedor de las habilidades de cada jugador
@@ -173,6 +187,8 @@ class QChat(QWidget):
         self.chat_escritura = QLineEdit()
         self.chat_texto = QTextEdit()
         self.chat_texto.setReadOnly(True)
+        self.chat_escritura.setPlaceholderText("Escribe tu mensaje aquí")
+        self.chat_escritura.returnPressed.connect(self.enviarMensaje)
 
         boton_enviar = QPushButton()
         boton_enviar.setText("Enviar")
@@ -218,7 +234,6 @@ class QNombreUsuario(QDialog):
         btnAgregar = QPushButton("Aceptar")
         layout.addWidget(btnAgregar)
         btnAgregar.clicked.connect(dialogo.accept)
-        self.text = self.entradaNombre.text()
 
         result = dialogo.exec_()
-        return self.entradaNombre.text()
+        return self.entradaNombre.text().strip()

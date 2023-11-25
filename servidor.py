@@ -1,8 +1,8 @@
 import socket
 import threading
 
-from funciones import sacar_ip
-
+from funciones import obtener_ip
+from PyQt5.QtCore import pyqtSignal
 
 class Cliente:
     """
@@ -60,14 +60,20 @@ class Cliente:
         self.hilo_lectura_continua = threading.Thread(target=self.leer_continuamente, daemon=True)
         self.hilo_lectura_continua.start()
 
-class Servidor:
+
+class Servidor():
     """
     Administra los datos del servidor y gestiona las conexiones y el envío de mensajes entre clientes.
     """
-
     def __init__(self, ip, puerto):
         self.ip = ip
         self.puerto = puerto
+
+        # Señales a usar
+        self.senalinicioExitoso = pyqtSignal()
+        self.senalconexionNoExitosa = pyqtSignal()
+        self.senalMensajeRecibido = pyqtSignal(str)
+        self.clienteConectado = pyqtSignal()
 
         # Declaración de atributos que se utilizan posteriormente:
         self.server = None
@@ -86,6 +92,7 @@ class Servidor:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.ip, self.puerto))
         self.server.listen(max_clientes)
+        self.senalinicioExitoso.emit()
         print(f"Servidor iniciado en {self.ip}:{self.puerto}")
 
         self.flag_desconectar = False
@@ -106,6 +113,7 @@ class Servidor:
             #print(f"Servidor: {cliente.nombre} se ha conectado")
             cliente.escribir(f"Bienvenido(a) {cliente.nombre}, contigo hay {len(self.lista_clientes)} clientes conectados.")
             self.procesar_mensaje(f"{cliente.nombre} se ha conectado.", cliente, esAvisoServidor=True)
+            self.clienteConectado.emit()
             cliente.iniciar_lectura_continua()
 
     def procesar_mensaje(self, mensaje, cliente, esAvisoServidor=False):
@@ -137,11 +145,10 @@ class Servidor:
 
 
 # Punto de inicio de ejecución del programa:
-ip = sacar_ip()
+ip = obtener_ip()
 # puerto = int(input("Puerto: "))
 
 servidor = Servidor(ip, 3333)
-servidor.iniciar(4)
 
 # Se crea un ciclo infinito para que el hilo principal no finalice y continúen en ejecución el hilo de aceptación de
 # clientes y los hilos de escucha de cada cliente conectado.
