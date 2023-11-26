@@ -1,12 +1,15 @@
 import random
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel, QStatusBar, QMenu, QToolBar
 from PyQt5.QtCore import Qt
-from Modulos import QChat, QTableros, QNombreUsuario, QHabilidades
+from Modulos import QChat, QTableros, QNombreUsuario, QHabilidades, DialogoConexion, obtener_ip
 from cliente_ui import QJugador
+from servidor import Servidor
 from PyQt5.QtGui import QIcon
 
+
 class InterfazPrincipal(QMainWindow):
+    servidor = Servidor
     """Interfaz Principal del juego donde se conectarán los modulos para iniciar el juego
     """
     def __init__(self):
@@ -14,9 +17,24 @@ class InterfazPrincipal(QMainWindow):
         self.setWindowTitle("Battleship")
         self.setMinimumSize(1300, 800)
         self.widgetPrincipal = QWidget()
-        self.setContentsMargins(10, 10, 10, 20)
+        self.setContentsMargins(10, 10, 10, 0)
         self.setStyleSheet('background-color: LightYellow; color: FireBrick; font: Consolas;')
         self.setWindowIcon(QIcon('Icono.png'))
+
+        botonMenu = QPushButton('Conexión')
+        botonMenu.setFlat(True)
+        listaDeMenu = QMenu()
+        botonMenu.setMenu(listaDeMenu)
+        menu = QToolBar()
+        menu.addWidget(botonMenu)
+        menu.setStyleSheet('background-color: LightYellow; font: Consolas; font-size: 20px;')
+        self.addToolBar(menu)
+        self.btnconectar = listaDeMenu.addAction('Conectar')
+        self.btnconectar.triggered.connect(self.conectar)
+        self.btndesconectar = listaDeMenu.addAction('Desconectar')
+        self.btndesconectar.setEnabled(False)
+        salir = listaDeMenu.addAction('Salir')
+        salir.triggered.connect(self.close)
 
         # Lista para mantener los componentes del juego
         self.widgets = []
@@ -44,11 +62,12 @@ class InterfazPrincipal(QMainWindow):
 
         # Modulo del chat
         self.chat = QChat(None, self.nombreUsuario)
+        self.chat.setEnabled(False)
         self.chat.setFixedSize(300, 300)
 
         # Tablero propio del usuario
-        tableroPropio = QTableros()
-        tableroPropio.etNombre.setText(self.nombreUsuario)
+        self.tableroPropio = QTableros()
+        self.tableroPropio.etNombre.setText(self.nombreUsuario)
 
         # Tablero con las habilidades del jugador
         zonaHabilidades = QHabilidades()
@@ -60,6 +79,11 @@ class InterfazPrincipal(QMainWindow):
         # Creación de los nombres de los jugadores en el contenedor
         self.contenedorJugadores = QVBoxLayout()
 
+        # Barra de estado para mostrar mensajes
+        self.barraEstado = QStatusBar()
+        self.barraEstado.setStyleSheet('background: LightYellow; color: FireBrick; font: Consolas;')
+        self.barraEstado.showMessage(f'¡Bienvenido {self.nombreUsuario}!')
+
         self.guardarJugadores()
         self.crearEtiquetasDeJugadores()
         self.actualizarTablerodeJugadores()
@@ -67,9 +91,10 @@ class InterfazPrincipal(QMainWindow):
         #Componentes de los tableros e importación a la interfaz
         self.contenedorPrincipal.addLayout(self.contenedorJugadores, 0, 0)
         self.contenedorPrincipal.addWidget(self.chat, 1, 0)
-        self.contenedorPrincipal.addWidget(tableroPropio, 1, 1, Qt.AlignCenter)
+        self.contenedorPrincipal.addWidget(self.tableroPropio, 1, 1, Qt.AlignCenter)
         self.contenedorPrincipal.addWidget(self.scrollEnemigos, 0, 1)
         self.contenedorPrincipal.addWidget(zonaHabilidades, 0, 2, 2, 1, Qt.AlignCenter)
+        self.contenedorPrincipal.addWidget(self.barraEstado, 2, 0, 1, 2)
         self.setCentralWidget(self.widgetPrincipal)
 
     def guardarJugadores(self):
@@ -78,11 +103,11 @@ class InterfazPrincipal(QMainWindow):
             jugadoraIngresar = QJugador(None, player, QTableros(None, False))
             self.diccionarioDeJugadores[player] = jugadoraIngresar
 
-
     def crearEtiquetasDeJugadores(self):
         coloresNombres = ['red', 'MidnightBlue', 'YellowGreen', 'Gold', 'Indigo', 'Orange', 'PaleVioletRed', 'SaddleBrown', 'SlateGray', 'Teal', 'Tomato', 'Turquoise', 'Violet', 'Yellow']
         for nombre in self.jugadoresLista:
             nuevoJugador = QLabel(nombre)
+            nuevoJugador.setStyleSheet('font-size: 20px')
             nuevoJugador.setStyleSheet(f'font: Consolas; font-size: 40px; color: {random.choice(coloresNombres)};')
             self.contenedorJugadores.addWidget(nuevoJugador)
 
@@ -93,7 +118,7 @@ class InterfazPrincipal(QMainWindow):
                 tableroEnemigo = QTableros(self.scrollEnemigos, False)
                 tableroEnemigo.etNombre.setText(self.diccionarioDeJugadores[jugador].nombre)
                 tableroEnemigo.etNombre.setToolTip(f'Click para ver el tablero de {tableroEnemigo.etNombre.text()}')
-                tableroEnemigo.etNombre.clicked.connect(lambda checked, tablero=tableroEnemigo: self.mostrarTablero(tablero))
+                tableroEnemigo.etNombre.clicked.connect(lambda tablero=tableroEnemigo: self.mostrarTablero(tablero))
                 self.layout = self.contenedorEnemigosH.layout()
                 self.layout.insertWidget(0, tableroEnemigo)
                 # tableroEnemigo.boton.clicked.connect(lambda checked, tablero=tableroEnemigo: self.mostrarTablero(tablero))
@@ -106,6 +131,31 @@ class InterfazPrincipal(QMainWindow):
             self.ventana_tablero_abierta = ventana_tablero
             ventana_tablero.exec()
 
+    def actualizarChat(self, mensaje):
+        self.chat.chat_texto.appendPlainText(mensaje)
+
+    def conectar(self):
+        self.ip = obtener_ip()
+        self.dialogoConectar = DialogoConexion()
+        self.dialogoConectar.exec()
+        try:
+            self.cliente = QJugador(None, self.nombreUsuario, self.tableroPropio, self.dialogoConectar.ip, self.dialogoConectar.puerto)
+            self.cliente.conectar()
+            self.cliente.mensaje_recibido.connect(self.actualizarChat)
+            self.cliente.conexion_exitosa.connect(self.actualizarChat)
+            self.cliente.conexion_no_exitosa.connect(self.actualizarChat)
+            self.cliente.servidor_caido.connect(self.actualizarChat)
+            self.chat.chat_texto.appendPlainText(f'Conectado al servidor {self.dialogoConectar.ip}:{self.dialogoConectar.puerto} como {self.nombreUsuario}')
+            self.btnconectar.setEnabled(False)
+            self.btndesconectar.setEnabled(True)
+            self.barraEstado.showMessage(f'Conectado al servidor {self.dialogoConectar.ip}:{self.dialogoConectar.puerto} como {self.nombreUsuario}')
+            self.chat.setEnabled(True)
+        except RuntimeError:
+            self.chat.chat_texto.appendPlainText(f'No se pudo conectar al servidor {self.dialogoConectar.ip}:{self.dialogoConectar.puerto}')
+            self.barraEstado.showMessage(f'No se pudo conectar al servidor {self.dialogoConectar.ip}:{self.dialogoConectar.puerto}', 3000)
+        except OSError:
+            self.chat.chat_texto.appendPlainText('No se pudo conectar al servidor')
+            self.barraEstado.showMessage('No se pudo conectar al servidor', 3000)
 
 class TableroEnGrande(QDialog):
     """Creador de tablero en grande para manipularlo

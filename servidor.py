@@ -1,65 +1,98 @@
 import socket
 import threading
+import random
 
 from funciones import obtener_ip
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtWidgets import QWidget
 
-class Cliente:
+class QJugador(QWidget):
     """
-    Administra los datos del cliente y el proceso de recepción y envío de datos desde y hacía él.
+    Administra los datos del cliente y el proceso de recepción y envío de datos desde y hacía el servidor.
     """
+    conexion_no_exitosa = pyqtSignal()
+    conexion_exitosa = pyqtSignal()
+    servidor_caido = pyqtSignal()
+    mensaje_recibido = pyqtSignal(str)
 
-    def __init__(self, conn, servidor):
-        self.conn = conn
-        self.servidor = servidor
+    habilidades = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
+    listaDeBarcos = ['Crucero de Asalto "Vanguardia"', 'Portaaviones "Tempestad"', 'Acorazado "Centurión']
+    
+    def __init__(self, parent=None, nombre = '', tablero = QWidget, ip_servidor = '', puerto = 0):
+        super().__init__(parent)
+        self.nombre = nombre
+        self.habilidades = []
+        self.barcos = []
+        self.tablero = tablero
+
+        self.nombre = nombre
+        self.ip_servidor = ip_servidor
+        self.puerto = puerto
 
         # Declaración de atributos que se utilizan posteriormente:
+        self.conn = None
         self.flag_cancelar = None
-        self.hilo_lectura_continua = None
 
-    def escribir(self, mensaje):
+    def conectar(self):
         """
-        Envía el mensaje al cliente.
+        Gestiona la conexión con el servidor.
+        """
+        try:
+            self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.conn.connect((self.ip_servidor, self.puerto))
+        except ConnectionRefusedError:
+            self.conexion_no_exitosa.emit()
+            return
+
+        self.enviar(self.nombre)
+        bienvenida = self.recibir()
+        print(bienvenida)
+        self.iniciar_recepcion_continua()
+        self.conexion_exitosa.emit()
+
+    def enviar(self, mensaje):
+        """
+        Envía el mensaje al servidor.
         Args:
             mensaje: Texto del mensaje.
         """
         self.conn.send(mensaje.encode())
 
-    def leer(self):
+    def recibir(self):
         """
-        Recibe un mensaje del cliente.
+        Recibe un mensaje del servidor.
         Returns:
             Texto del mensaje.
         """
         try:
             mensaje = self.conn.recv(2048)
-            return mensaje.decode()
-        except ConnectionResetError:
-            raise RuntimeError("El cliente se desconectó")
+            self.mensaje_recibido.emit(mensaje.decode())
+        except ConnectionResetError as e:
+            raise RuntimeError("El servidor se desconectó")
 
-    def leer_continuamente(self):
-        """
-        Implementa el proceso de lectura continua dentro de un ciclo "infinito". Esta función debe ejecutarse en un
-        hilo de ejecución independiente debido a que "recv()" es un método bloqueante.
-        """
-        while not self.flag_cancelar:
-            try:
-                mensaje = self.leer()
-
-                # Avisar al objeto servidor para que emita el mensaje al resto de los clientes:
-                self.servidor.procesar_mensaje(mensaje, self)
-            except RuntimeError:
-                self.servidor.avisar_desconexion(self)
-                self.flag_cancelar = True
-
-    def iniciar_lectura_continua(self):
-        """
-        Gestiona la creación e inicio del hilo para la lectura continua de datos desde el cliente.
-        """
+    def iniciar_recepcion_continua(self):
         self.flag_cancelar = False
-        self.hilo_lectura_continua = threading.Thread(target=self.leer_continuamente, daemon=True)
+        self.hilo_lectura_continua = QThread()
+        self.moveToThread(self.hilo_lectura_continua)
+        self.hilo_lectura_continua.started.connect(self.recibir_continuamente)
+
+        # Señal utilizada para gestionar la correcta terminación del hilo con quit:
+        # self.finished.connect(self.hilo_lectura_continua.quit)
+
         self.hilo_lectura_continua.start()
 
+    def recibir_continuamente(self):
+        while not self.flag_cancelar:
+            try:
+                mensaje = self.recibir()
+                print(mensaje)
+            except RuntimeError:
+                self.flag_cancelar = True
+                self.servidor_caido.emit()
+
+    def asignarAtributos(self):
+        self.habilidades = [random.choice(self.habilidades) for _ in range(3)]
+        self.barcos = [random.choice(self.listaDeBarcos) for _ in range(7)]
 
 class Servidor():
     """
@@ -82,7 +115,7 @@ class Servidor():
         self.lista_clientes = []
         self.nombre = None
 
-    def iniciar(self, max_clientes=100):
+    def iniciar(self, max_clientes=3):
         """
         Configura el servidor y gestiona el inicio de aceptación de clientes.
         Args:
@@ -106,15 +139,13 @@ class Servidor():
         """
         while not self.flag_desconectar:
             conn, addr = self.server.accept()
-            cliente = Cliente(conn, self)
+            cliente = QJugador(conn, cliente.nombre, cliente.tablero, cliente.ip_servidor, cliente.puerto)
             self.lista_clientes.append(cliente)
 
-            cliente.nombre = cliente.leer()
-            #print(f"Servidor: {cliente.nombre} se ha conectado")
-            cliente.escribir(f"Bienvenido(a) {cliente.nombre}, contigo hay {len(self.lista_clientes)} clientes conectados.")
+            cliente.enviar(f"Bienvenido(a) {cliente.nombre}, contigo hay {len(self.lista_clientes)} clientes conectados.")
             self.procesar_mensaje(f"{cliente.nombre} se ha conectado.", cliente, esAvisoServidor=True)
             self.clienteConectado.emit()
-            cliente.iniciar_lectura_continua()
+            cliente.recibir_continuamente()
 
     def procesar_mensaje(self, mensaje, cliente, esAvisoServidor=False):
         """
@@ -132,7 +163,7 @@ class Servidor():
         print(mensaje)
         for c in self.lista_clientes:
             if c != cliente:
-                c.escribir(mensaje)
+                c.recibir(mensaje)
 
     def avisar_desconexion(self, cliente):
         """
@@ -154,5 +185,3 @@ servidor = Servidor(ip, 3333)
 # clientes y los hilos de escucha de cada cliente conectado.
 # NOTA: Esto no es necesario si los hilos se crean con daemon=False, sin embargo, podemos tener un comportamiento
 # no deseado si finaliza el hilo principal y quedan otros hilos todavía en ejecución.
-while True:
-    pass
