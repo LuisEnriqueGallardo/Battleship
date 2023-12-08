@@ -1,5 +1,5 @@
 import random
-from PyQt5.QtWidgets import QVBoxLayout, QWidget, QPlainTextEdit, QLineEdit, QGridLayout, QPushButton, QSizePolicy, QDialog, QScrollArea, QFrame, QDialogButtonBox
+from PyQt5.QtWidgets import QMessageBox, QVBoxLayout, QWidget, QPlainTextEdit, QLineEdit, QGridLayout, QPushButton, QSizePolicy, QDialog, QScrollArea, QFrame, QDialogButtonBox
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QSize
@@ -75,7 +75,6 @@ class QTableros(QWidget):
         botonElegido.setStyleSheet("background-color: Green; border: 1px solid BurlyWood")
         botonElegido.setEnabled(True)
         coord = self.casillas.index(botonElegido)
-        print(coord)
         self.configurar_casilla(coord)
 
     def configurar_casilla(self, coord):
@@ -141,6 +140,15 @@ class QHabilidades(QWidget):
         self.añadir = layoutEnemigos.layout()
 
         # Creación de los botones para las habilidades y inicialización de 3 habilidades por defecto
+
+        scrollEnemigos.setWidget(contenedorEnemigos)
+
+        layoutPrincipal = QVBoxLayout(self)
+        layoutPrincipal.addWidget(scrollEnemigos)
+
+        self.ventana_habilidad_abierta = None
+        
+    def generarHabilidades(self):
         variablesDePrueba = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
         for _ in range(3):
             botonDeHabilidad = QPushButton()
@@ -149,15 +157,8 @@ class QHabilidades(QWidget):
             botonDeHabilidad.setIcon(QIcon(f'Habilidades/{eleccionAleatoria}.png'))
             botonDeHabilidad.setIconSize(QSize(300, 400))
             self.habilidades[eleccionAleatoria] = (botonDeHabilidad, eleccionAleatoria)
-            botonDeHabilidad.clicked.connect(lambda habilidad=botonDeHabilidad, nombre=eleccionAleatoria: self.mostrarHabilidad(habilidad, nombre=nombre))
+            botonDeHabilidad.clicked.connect(lambda _, habilidad=botonDeHabilidad, nombre=eleccionAleatoria: self.mostrarHabilidad(habilidad, nombre=nombre))
             self.añadir.addWidget(botonDeHabilidad)
-
-        scrollEnemigos.setWidget(contenedorEnemigos)
-
-        layoutPrincipal = QVBoxLayout(self)
-        layoutPrincipal.addWidget(scrollEnemigos)
-
-        self.ventana_habilidad_abierta = None
 
     # Función para mostrar la habilidad en grande y evitar una segunda apertura de la misma
     def mostrarHabilidad(self, habilidad, nombre):
@@ -175,6 +176,7 @@ class HabilidadEnGrande(QDialog):
         self.setWindowTitle(str(nombre))
         self.setFixedSize(500, 500)
         self.habilidad = habilidad
+        
         self.habilidad.setStyleSheet("background-color: WhiteSmoke;")
         contenedor = QVBoxLayout()
         
@@ -223,24 +225,10 @@ class QChat(QWidget):
         self.chat_escritura.setFocus()
         self.chat_texto.setReadOnly(True)
         self.chat_escritura.setPlaceholderText("Escribe tu mensaje aquí")
-        self.chat_escritura.returnPressed.connect(self.enviarMensaje)
 
-        boton_enviar = QPushButton()
-        boton_enviar.setText("Enviar")
-        boton_enviar.clicked.connect(self.enviarMensaje)
 
         contenedor.addWidget(self.chat_texto)
         contenedor.addWidget(self.chat_escritura)
-        contenedor.addWidget(boton_enviar)
-
-    # Función para enviar mensajes
-    def enviarMensaje(self):
-        # nombre = QNombreUsuario().entradaNombre.text()
-        mensaje = self.chat_escritura.text()
-        self.chat_escritura.clear()
-        if mensaje != "":
-            self.chat_texto.appendPlainText(f"\n {self.nombreDeUsuario}: {mensaje}")
-
 
 class QNombreUsuario(QDialog):
     """Ventana para el ingreso del nombre de usuario
@@ -301,10 +289,12 @@ class DialogoConexion(QDialog):
         self.setLayout(contenedor)
 
     def aceptar(self):
-        self.ip = self.direccion.text()
-        self.puerto = int(self.puertoElegido.text())
-
-        self.close()
+        try:
+            self.ip = self.direccion.text()
+            self.puerto = int(self.puertoElegido.text())
+            self.close()
+        except ValueError:
+            QMessageBox.warning(self, 'Error', 'Verifica los datos ingresados')
 
     def cancelar(self):
         self.close()
