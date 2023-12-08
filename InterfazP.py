@@ -21,10 +21,10 @@ class InterfazPrincipal(QMainWindow):
         self.setStyleSheet('background-color: #FFFFE0; color: #B22222; font: Consolas;')
         self.setWindowIcon(QIcon('Icono.png'))
         
+        # Señales del servidor
         self.servidor.servidorIniciado.connect(self.procesarMensaje)
         self.servidor.jugadorConectado.connect(self.jugadorEntrante)
         self.servidor.jugadorCaido.connect(self.eliminarJugador)
-        # self.servidor.listaDeJugadores.connect(self.generarNuevosJugadores)
 
         # Barra de herramientas
         toolbar = self.addToolBar('Conexión')
@@ -39,6 +39,7 @@ class InterfazPrincipal(QMainWindow):
         self.btnIniciarJuego = toolbar.addAction('Iniciar Juego', self.iniciarJuego)
         self.btnIniciarJuego.setEnabled(False)
         
+        # Estilos de los componentes
         self.setStyleSheet("""
                             QToolButton:enabled { background-color: #c0fcc5; }
                             QToolButton:disabled { background-color: #fcb1b4; }
@@ -100,26 +101,42 @@ class InterfazPrincipal(QMainWindow):
         self.setCentralWidget(self.widgetPrincipal)
 
     def guardarJugadores(self):
-        """Inicializa la lista vacía para que al iniciar el juego. Se construya la misma
+        """Inicializa la lista vacía para que al iniciar el juego. Se construye la misma
         con los jugadores que se conecten al servidor.
         """
         # Creación de los jugadores en un diccionario
         for player in self.jugadoresLista:
-            jugadoraIngresar = QJugador(player, None, QTableros(None, False))
+            jugadoraIngresar = QJugador(player, None, None)
             self.diccionarioDeJugadores[player] = jugadoraIngresar
             
     def eliminarJugador(self, jugador):
+        """Administra la eliminación de un jugador de la lista de jugadores y del diccionario de jugadores cuando
+        el jugador es eliminado o se desconecta del servidor.
+
+        Args:
+            jugador (str): string con el nombre del jugador a eliminar
+        """
         self.jugadoresLista.remove(jugador)
         self.diccionarioDeJugadores.pop(jugador)
         self.crearEtiquetasDeJugadores()        
             
     def eliminar_widgets(self, layout):
+        """Funcion para eliminar widgets de un contenedor o layout. En este caso para eliminar las etiquetas y vaciar el contenedor
+        para ser reconstruido al iniciar el juego y evitar acumulacion de etiquetas.
+
+        Args:
+            layout (layout): Recibe como argumento un layout o contenedor de widgets
+        """
         for i in reversed(range(layout.count())):
             widget = layout.itemAt(i).widget()
             if widget is not None: 
                 widget.deleteLater()
 
     def crearEtiquetasDeJugadores(self):
+        """Función para generar las etiquetas con los nombres de los jugadores. Se crea una etiqueta con diferente color por
+        estetica en cada jugador. Además genera un background diferente para el jugador propio.
+        """
+        
         self.eliminar_widgets(self.contenedorJugadores)
         coloresNombres =  ["#1a1a1a", "#333333", "#4c4c4c", "#666666", "#808080", "#999999", "#b3b3b3", "#cccccc", "#666699", "#996666", "#666633", "#669966", "#6666cc", "#993366", "#cc6666"]
         for nombre in self.jugadoresLista:
@@ -127,15 +144,23 @@ class InterfazPrincipal(QMainWindow):
             nuevoJugador.setStyleSheet('font-size: 20px')
             nuevoJugador.setStyleSheet(f'font: Consolas; font-size: 40px; color: {random.choice(coloresNombres)};')
             if nombre == self.nombreUsuario:
-                nuevoJugador.setStyleSheet('background-color: #feeabe;')
+                nuevoJugador.setStyleSheet(f'background-color: #feeabe; font: Consolas; font-size: 40px; color: {random.choice(coloresNombres)}')
             self.contenedorJugadores.addWidget(nuevoJugador)
 
     def jugadorEntrante(self, jugador):
+        """Función para agregar un jugador a la lista de jugadores y al diccionario de jugadores cuando se conecta al servidor.
+
+        Args:
+            jugador (str): String con el nombre del jugador a agregar
+        """
         self.jugadoresLista.append(jugador)
-        self.diccionarioDeJugadores[jugador] = QJugador(jugador, None, QTableros(None, False))
+        self.diccionarioDeJugadores[jugador] = QJugador(jugador, None, None)
         self.crearEtiquetasDeJugadores()
 
     def actualizarTablerodeJugadores(self):
+        """Función para actualizar los tableros de los jugadores enemigos y el propio. Se crea un tablero propio y se crean los tableros enemigos
+        con el nombre de cada jugador en el contenedor de los mismos. Se crea una señal para mostrar el tablero en grande al hacer click en el nombre.
+        """
         # Tablero propio del usuario
         self.tableroPropio = QTableros()
         self.tableroPropio.etNombre.setText(self.nombreUsuario)
@@ -155,18 +180,26 @@ class InterfazPrincipal(QMainWindow):
             self.procesarMensaje(f'No se pudo actualizar el tablero de {jugador}. {e}')
 
     def mostrarTablero(self, tablero):
+        """Función para mostrar el tablero en grande al hacer click en el nombre del jugador enemigo.
+
+        Args:
+            tablero (QTablero): Tablero del jugador enemigo como objeto "QTablero"
+        """
         if self.ventana_tablero_abierta is None:
             ventana_tablero = TableroEnGrande(self, tablero)
             self.ventana_tablero_abierta = ventana_tablero
             ventana_tablero.exec()
 
     def procesarMensaje(self, mensaje):
-        """
-        Procesa mensajes recibidos, incluyendo comandos especiales.
+        """Función para procesar los mensajes recibidos por el servidor y el cliente. Se procesan los mensajes y realiza la comprobación en caso de ser un 
+        comando iniciando por "//" y ejecuta la función correspondiente.
+
+        Args:
+            mensaje (str): Mensaje recibido por el servidor o el cliente
         """
         # Verificar si el mensaje es un comando especial
         mensaje = mensaje.strip()
-        if mensaje.startswith('//') or mensaje.startswith('"//'):
+        if mensaje.startswith('//'):
             comando = mensaje[2:]
             self.procesar_comando(comando)
         else:
@@ -174,6 +207,11 @@ class InterfazPrincipal(QMainWindow):
             self.chat.chat_texto.appendPlainText(mensaje)
 
     def procesar_comando(self, comando):
+        """Función que procesa los comandos recibidos por el servidor. Para cada comando existe una función que se ejecuta al recibirlo.
+
+        Args:
+            comando (JSON): Comando recibido por el servidor, el cual llega como un JSON codificado en string.
+        """
         if comando.startswith("iniciarJuego"):
             # Extraer la lista de jugadores del mensaje
             partes = comando.split(" ", 1)
@@ -185,9 +223,18 @@ class InterfazPrincipal(QMainWindow):
                 self.iniciarJuego()
             else:
                 print("Comando iniciarJuego sin lista de jugadores.")
-            
+        if comando.startswith("actualizarTablero"):
+            try:
+                tablero_json = comando.split(" ", 1)[1]
+                nombreRemitente = comando.split(" ", 1)[0]
+                tablero = json.loads(tablero_json)
+                self.recibirTableros(nombreRemitente, tablero)
+            except Exception as e:
+                print(f"Error al actualizar el tablero: {e}")
 
     def conectar(self):
+        """Función que gestiona toda la conexión al servidor. Se crea un cliente y se conecta al servidor. Se conectan las señales del cliente y se configura
+        """
         self.dialogoConectar = DialogoConexion()
         self.dialogoConectar.exec()
         try:
@@ -208,6 +255,8 @@ class InterfazPrincipal(QMainWindow):
             self.barraEstado.showMessage(f'¡Bienvenido {self.nombreUsuario}!')
             
     def iniciarServidor(self):
+        """Función para iniciar el servidor. El host se conecta como un cliente mas para facilitar la comunicación entre el servidor y el cliente.
+        """
         self.btnConectar.setEnabled(False)
         self.btnIniciarServidor.setEnabled(False)
         self.servidor.mensajeServidor.connect(self.procesarMensaje)
@@ -219,10 +268,16 @@ class InterfazPrincipal(QMainWindow):
         self.configuracionInterfazOnline()
         
     def configuracionInterfazOnline(self):
+        """Función para configurar la interfaz cuando se conecta al servidor. Se habilita el chat y se conecta la señal de enter para enviar mensajes.
+        """
         self.chat.chat_escritura.returnPressed.connect(lambda: self.cliente.escribir(self.chat.chat_escritura.text()))
+        self.chat.chat_escritura.returnPressed.connect(self.chat.chat_escritura.clear)
         self.chat.setEnabled(True)
         
     def construirJuego(self):
+        """Función para arrancar el juego. Generalmente esta función es llamada por un comando recibido por el servidor.
+        En caso de ser el host. Es llamada por el botón de iniciar juego.
+        """
         if self.juegoIniciado:
             return
         if self.jugadoresLista == []:
@@ -233,23 +288,40 @@ class InterfazPrincipal(QMainWindow):
         self.juegoIniciado = True
 
     def iniciarJuego(self):
+        """Función para iniciar el juego. Se envía un comando al servidor para que este lo reenvíe a los clientes y se inicie el juego.
+        Este botón solo funciona para el host.
+        """
         if not self.juegoIniciado:
             lista_json = json.dumps(self.jugadoresLista)
             self.cliente.escribir(f'//iniciarJuego {lista_json}')
             self.btnIniciarJuego.setEnabled(False)
             self.crearEtiquetasDeJugadores()
             self.construirJuego()
+            self.cliente.tablero = self.tableroPropio
 
     def cerrarServidor(self):
+        """Función para cerrar el servidor. Se cierra el servidor y se habilitan los botones para iniciar el servidor y el juego.
+        """
         self.servidor.server.close()
         self.btnIniciarServidor.setEnabled(True)
-        self.btnIniciarJuego.setEnabled(False)
         self.btnConectar.setEnabled(True)
         self.procesarMensaje(f'Servidor cerrado')
         self.barraEstado.showMessage(f'¡Bienvenido {self.nombreUsuario}!')
 
-    def recibirTableros(self):
-        pass
+    def recibirTableros(self, nombre, tablero):
+        """Recibe el nombre de cada cliente y el tablero de estos luego de que el servidor los reenvío. En lugar de recibir el objeto completo
+        recibe solamente el estado de los botones activos.
+
+        Args:
+            nombre (str): nombre del jugador que envía el tablero
+            tablero (list): Lista de botones con contenido relevante para el jugador
+        """
+        for widget in self.contenedorEnemigosH.findChildren(QTableros):
+            if widget.etNombre.text() == nombre:
+                for botonActivo in tablero:
+                    boton = widget[botonActivo]
+                    boton.disparado = True
+    
 class TableroEnGrande(QDialog):
     """Creador de tablero en grande para manipularlo
     """
@@ -272,7 +344,9 @@ class TableroEnGrande(QDialog):
         self.setLayout(contenedor)
 
     # Cerrar el tablero en grande
-    def cerrarDialogo(self):             
+    def cerrarDialogo(self):
+        """Función para cerrar el tablero en grande y volver al juego
+        """
         self.close()
         self.parent().layout.insertWidget(0, self.tablero)
         self.parent().ventana_tablero_abierta = None
@@ -283,3 +357,15 @@ if __name__ == "__main__":
     window = InterfazPrincipal()
     window.show()
     sys.exit(app.exec_())
+
+
+
+# TODO:
+# - Configurar el cambio de el tablero propio al recibirlo y el habilitar tableros enemigos para atacar
+# - Configurar la selección de barcos al principìo
+# - Configurar el uso de habilidades
+# - Configurar los turnos de los jugadores
+# - Configurar la eliminación de los jugadores al perder
+# - Administrar excepciones y errores
+# - Configurar el chat para evitar que se envíen mensajes comandos manualmente
+# - Comprobar si realmente es necesaria la validación de comandos por el servidor o solo mantener una retransmisión.
