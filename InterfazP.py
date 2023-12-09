@@ -1,7 +1,6 @@
 import json
 import random
 import sys
-import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel, QStatusBar
 from PyQt5.QtCore import Qt
 from Modulos import QChat, QTableros, QNombreUsuario, QHabilidades, DialogoConexion, obtener_ip
@@ -74,6 +73,7 @@ class InterfazPrincipal(QMainWindow):
 
         # Tablero con las habilidades del jugador
         self.zonaHabilidades = QHabilidades()
+        self.zonaHabilidades.senalDeHabilidad.connect(self.usoDeHabilidades)
 
         # Variables para operaciones futuras
         self.diccionarioDeJugadores = {}
@@ -280,8 +280,10 @@ class InterfazPrincipal(QMainWindow):
         """
         if self.juegoIniciado:
             return
+        
         if self.jugadoresLista == []:
             self.jugadoresLista = self.cliente.jugadoresLista
+            
         self.actualizarTablerodeJugadores()
         self.zonaHabilidades.generarHabilidades()
         self.servidor.flag_aceptar_clientes = False
@@ -298,6 +300,8 @@ class InterfazPrincipal(QMainWindow):
             self.crearEtiquetasDeJugadores()
             self.construirJuego()
             self.cliente.tablero = self.tableroPropio
+            self.tableroPropio.elegirBarcos()
+            self.zonaHabilidades.alternarHabilidades(False)
 
     def cerrarServidor(self):
         """Función para cerrar el servidor. Se cierra el servidor y se habilitan los botones para iniciar el servidor y el juego.
@@ -321,7 +325,24 @@ class InterfazPrincipal(QMainWindow):
                 for botonActivo in tablero:
                     boton = widget[botonActivo]
                     boton.disparado = True
-    
+        if nombre == self.nombreUsuario:
+            for botonActivo in tablero:
+                boton = self.tableroPropio[botonActivo]
+                boton.disparado = True
+                if botonActivo in self.tableroPropio.barco:
+                    boton.setStyleSheet('background-color: #B22222;')
+                
+    def usoDeHabilidades(self, habilidad):
+        """Función para el uso de habilidades. 
+
+        Args:
+            habilidad (str): Nombre de la habilidad a ejecutar
+        """
+        if habilidad == 'Llamado a refuerzos':
+            self.tableroPropio.obtenerbarco('Portaaviones')
+        elif habilidad == 'Reposicionamiento':
+            self.tableroPropio.reposicionamiento()
+
 class TableroEnGrande(QDialog):
     """Creador de tablero en grande para manipularlo
     """
@@ -358,11 +379,7 @@ if __name__ == "__main__":
     window.show()
     sys.exit(app.exec_())
 
-
-
 # TODO:
-# - Configurar el cambio de el tablero propio al recibirlo y el habilitar tableros enemigos para atacar
-# - Configurar la selección de barcos al principìo
 # - Configurar el uso de habilidades
 # - Configurar los turnos de los jugadores
 # - Configurar la eliminación de los jugadores al perder
