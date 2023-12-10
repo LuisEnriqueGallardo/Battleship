@@ -13,6 +13,7 @@ def obtener_ip():
 fuente = QFont('Consolas', 12)
 
 class QTableros(QWidget):
+    barcosElegidos = pyqtSignal()
     """Tableros para cada jugador con los parametros y configuraciones de cada uno.
 
     Args:
@@ -49,6 +50,8 @@ class QTableros(QWidget):
         self.orientacion.clicked.connect(self.cambiarOrientacion)
         contenedorTitulo.addWidget(self.orientacion)
         
+        self.barcosDisponibles = []
+        
         # Creación de los botones para el tablero y la self.cuadricula, además de la configuración individual de cada uno
         for i in range(10):
             for j in range(10):
@@ -82,6 +85,7 @@ class QTableros(QWidget):
             barcoButton.clicked.connect(lambda _, barco=barco: self.seleccionarTipoBarco(barco))
             barcoButton.clicked.connect(lambda _, barco=barcoButton: barco.setVisible(False))
             barcoButton.setStyleSheet("background-color: #ec9b9d;")
+            self.barcosDisponibles.append(barcoButton)
     
     def seleccionarTipoBarco(self, barco):
         """Función para la elección del tipo de barco a colocar en el tablero
@@ -137,7 +141,8 @@ class QTableros(QWidget):
                     listaProvisionalDePosiciones.append([self.casillas[fila * 10 + columna + i].row,  self.casillas[fila * 10 + columna + i].col])
                     self.eleccionFinalizada()
                 self.listaDePosiciones.append(listaProvisionalDePosiciones)
-                print(self.listaDePosiciones)
+                self.barcosDisponibles.pop(0)
+
                 
             elif orientacion == "Vertical":
                 for i in range(self.tamanoBarco):                    
@@ -148,6 +153,11 @@ class QTableros(QWidget):
                     listaProvisionalDePosiciones.append([  self.casillas[(fila + i) * 10 + columna].row,   self.casillas[(fila + i) * 10 + columna].col])
                     self.eleccionFinalizada()
                 self.listaDePosiciones.append(listaProvisionalDePosiciones)
+                self.barcosDisponibles.pop(0)
+                
+            if self.barcosDisponibles.__len__() == 0:
+                self.alternarTablero(False)
+                self.barcosElegidos.emit()
         else:
             pass
         
@@ -255,6 +265,14 @@ class QTableros(QWidget):
         elif self.tamanoBarco == 1:
             self.obtenerbarco('Acorazado')
         self.eleccionFinalizada()
+
+    def disparoOrdinario(self, coordenadas):
+        for boton in self.casillas:
+            if boton.row == coordenadas[0] and boton.col == coordenadas[1]:
+                boton.setStyleSheet('background-color: #E74C3C;')
+                boton.disparado = True
+                return
+        self.alternarTablero(False)
 
     def tiroDoble(self, coordenadas):
         """Función para activar el tiro doble en el tablero del jugador oponente.
@@ -473,7 +491,6 @@ class QChat(QWidget):
         """
         if self.chat_escritura.text().strip() != '//':
             return self.chat_escritura.text().strip()
-
 
 class QNombreUsuario(QDialog):
     """Ventana para el ingreso del nombre de usuario
