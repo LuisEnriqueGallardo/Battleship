@@ -255,7 +255,65 @@ class QTableros(QWidget):
         elif self.tamanoBarco == 1:
             self.obtenerbarco('Acorazado')
         self.eleccionFinalizada()
+
+    def tiroDoble(self, coordenadas):
+        """Función para activar el tiro doble en el tablero del jugador oponente.
+
+        Args:
+            coordenadas (list): Lista con las coordenadas del tiro doble.
+        """
+        for boton in self.casillas:
+            if boton.row == coordenadas[0] and boton.col == coordenadas[1]:
+                if self.orientacion.toolTip() == 'Horizontal':
+                    coordenadaBoton = self.casillas.index(boton) + 1
+                else:
+                    coordenadaBoton = self.casillas.index(boton) + 10
+                self.alternarTablero(False)
+
+                boton.disparado = True
+                self.casillas[coordenadaBoton].disparado = True
                 
+                self.casillas[coordenadaBoton].setStyleSheet("background-color: #E74C3C")
+                boton.setStyleSheet('background-color: #E74C3C;')
+                
+                for boton in self.casillas:
+                    if boton.disparado is None:
+                        boton.setStyleSheet("background-color: #85C1E9")
+
+                return
+            
+    def tiroCuadruple(self, coordenadas):
+        for boton in self.casillas:
+            if boton.row == coordenadas[0] and boton.col == coordenadas[1]:
+                coordenadaBoton2 = self.casillas.index(boton) + 1
+                coordenadaBoton3 = self.casillas.index(boton) + 10
+                coordenadaBoton4 = self.casillas.index(boton) + 11
+                self.alternarTablero(False)
+                
+                boton.setStyleSheet('background-color: #E74C3C;')
+                boton.disparado = True
+                
+                self.casillas[coordenadaBoton2].disparado = True
+                self.casillas[coordenadaBoton2].setStyleSheet("background-color: #E74C3C")
+                
+                self.casillas[coordenadaBoton3].disparado = True
+                self.casillas[coordenadaBoton3].setStyleSheet("background-color: #E74C3C")
+                
+                self.casillas[coordenadaBoton4].disparado = True
+                self.casillas[coordenadaBoton4].setStyleSheet("background-color: #E74C3C")
+                
+                for boton in self.casillas:
+                    if boton.disparado is None:
+                        boton.setStyleSheet("background-color: #85C1E9")
+
+                return   
+
+    def alternarTablero(self, estado = bool, validarBarcos = None):
+        """Función para deshabilitar el tablero del jugador.
+        """
+        for boton in self.casillas:
+            boton.setEnabled(estado)
+
 class QHabilidades(QWidget):
     """Contenedor de las habilidades de cada jugador
     """
@@ -297,7 +355,8 @@ class QHabilidades(QWidget):
     def generarHabilidades(self):
         """Algoritmo para generar las habilidades de forma aleatoria en base a la lista de habilidades existentes.
         """
-        listaHabilidades = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
+        # listaHabilidades = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
+        listaHabilidades = ['Ataque Aereo']
         for _ in range(3):
             botonDeHabilidad = QPushButton()
             # botonDeHabilidad.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
@@ -308,7 +367,6 @@ class QHabilidades(QWidget):
             botonDeHabilidad.clicked.connect(lambda _, habilidad=botonDeHabilidad, nombre=eleccionAleatoria: self.mostrarHabilidad(habilidad, nombre=nombre))
             self.añadir.addWidget(botonDeHabilidad)
 
-    # Función para mostrar la habilidad en grande y evitar una segunda apertura de la misma
     def mostrarHabilidad(self, habilidad, nombre):
         """Función para mostrar la habilidad en grande y evitar una segunda apertura de la misma
 
@@ -409,6 +467,13 @@ class QChat(QWidget):
 
         contenedor.addWidget(self.chat_texto)
         contenedor.addWidget(self.chat_escritura)
+        
+    def controlarEnvioDeComandos(self):
+        """Función para controlar el envío de mensajes en el chat evitando comandos no deseados.
+        """
+        if self.chat_escritura.text().strip() != '//':
+            return self.chat_escritura.text().strip()
+
 
 class QNombreUsuario(QDialog):
     """Ventana para el ingreso del nombre de usuario

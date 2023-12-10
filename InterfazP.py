@@ -1,7 +1,7 @@
 import json
 import random
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel, QStatusBar
+from PyQt5.QtWidgets import QMessageBox, QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel, QStatusBar
 from PyQt5.QtCore import Qt
 from Modulos import QChat, QTableros, QNombreUsuario, QHabilidades, DialogoConexion, obtener_ip
 from PyQt5.QtGui import QIcon
@@ -48,7 +48,7 @@ class InterfazPrincipal(QMainWindow):
 
         # Lista para mantener los componentes del juego
         self.widgets = []
-        self.jugadoresLista = [] #Lista de jugadores
+        self.jugadoresLista = ['Jorge'] #Lista de jugadores
 
         # Dialogo para ingresar el nombre de usuario
         self.nombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
@@ -90,7 +90,8 @@ class InterfazPrincipal(QMainWindow):
         self.crearEtiquetasDeJugadores()
         
         self.juegoIniciado = False
-        
+        self.tiroDobleActivo = None
+        self.tiroCuadrupleActivo = None
 
         #Componentes de los tableros e importación a la interfaz
         self.contenedorPrincipal.addLayout(self.contenedorJugadores, 0, 0)
@@ -174,8 +175,8 @@ class InterfazPrincipal(QMainWindow):
                     tableroEnemigo.etNombre.setText(self.diccionarioDeJugadores[jugador].nombre)
                     tableroEnemigo.etNombre.setToolTip(f'Click para ver el tablero de {tableroEnemigo.etNombre.text()}')
                     tableroEnemigo.etNombre.clicked.connect(lambda _, tablero=tableroEnemigo: self.mostrarTablero(tablero))
-                    self.layout = self.contenedorEnemigosH.layout()
-                    self.layout.insertWidget(0, tableroEnemigo)
+                    self.layouta = self.contenedorEnemigosH.layout()
+                    self.layouta.insertWidget(0, tableroEnemigo)
         except Exception as e:
             self.procesarMensaje(f'No se pudo actualizar el tablero de {jugador}. {e}')
 
@@ -270,6 +271,7 @@ class InterfazPrincipal(QMainWindow):
     def configuracionInterfazOnline(self):
         """Función para configurar la interfaz cuando se conecta al servidor. Se habilita el chat y se conecta la señal de enter para enviar mensajes.
         """
+        mensaje = self.chat.controlarEnvioDeComandos
         self.chat.chat_escritura.returnPressed.connect(lambda: self.cliente.escribir(self.chat.chat_escritura.text()))
         self.chat.chat_escritura.returnPressed.connect(self.chat.chat_escritura.clear)
         self.chat.setEnabled(True)
@@ -301,7 +303,7 @@ class InterfazPrincipal(QMainWindow):
             self.construirJuego()
             self.cliente.tablero = self.tableroPropio
             self.tableroPropio.elegirBarcos()
-            self.zonaHabilidades.alternarHabilidades(False)
+            # self.zonaHabilidades.alternarHabilidades(False)
 
     def cerrarServidor(self):
         """Función para cerrar el servidor. Se cierra el servidor y se habilitan los botones para iniciar el servidor y el juego.
@@ -338,10 +340,17 @@ class InterfazPrincipal(QMainWindow):
         Args:
             habilidad (str): Nombre de la habilidad a ejecutar
         """
+        print(habilidad)
         if habilidad == 'Llamado a refuerzos':
             self.tableroPropio.obtenerbarco('Portaaviones')
         elif habilidad == 'Reposicionamiento':
             self.tableroPropio.reposicionamiento()
+        elif habilidad == 'Cañon doble':
+            self.tiroDobleActivo = True
+            QMessageBox.information(self, 'Cañon doble', 'Seleccione un jugador para atacarlo.')
+        elif habilidad == 'Ataque Aereo':
+            self.tiroCuadrupleActivo = True
+            QMessageBox.information(self, 'Ataque Aereo', 'Seleccione un jugador para atacarlo.')
 
 class TableroEnGrande(QDialog):
     """Creador de tablero en grande para manipularlo
@@ -363,13 +372,30 @@ class TableroEnGrande(QDialog):
         contenedor.addWidget(tablero)
         contenedor.addWidget(botonSalir)
         self.setLayout(contenedor)
+        
+        if self.parent().tiroDobleActivo:
+            self.parent().tiroDobleActivo = None
+            tablero.alternarTablero(True)
+            for i in range(tablero.cuadricula.count()):
+                boton = tablero.cuadricula.itemAt(i).widget()
+                boton.setStyleSheet('background-color: #80ff80')
+                boton.clicked.connect(lambda _, coordenadas=[boton.row, boton.col]:tablero.tiroDoble(coordenadas))
+        elif self.parent().tiroCuadrupleActivo:
+            self.parent().tiroCuadrupleActivo = None
+            tablero.alternarTablero(True)
+            for i in range(tablero.cuadricula.count()):
+                boton = tablero.cuadricula.itemAt(i).widget()
+                boton.setStyleSheet('background-color: #80ff80')
+                boton.clicked.connect(lambda _, coordenadas=[boton.row, boton.col]:tablero.tiroCuadruple(coordenadas))
+                
+                
 
     # Cerrar el tablero en grande
     def cerrarDialogo(self):
         """Función para cerrar el tablero en grande y volver al juego
         """
         self.close()
-        self.parent().layout.insertWidget(0, self.tablero)
+        self.parent().layouta.insertWidget(0, self.tablero)
         self.parent().ventana_tablero_abierta = None
 
 if __name__ == "__main__":
@@ -380,9 +406,6 @@ if __name__ == "__main__":
     sys.exit(app.exec_())
 
 # TODO:
-# - Configurar el uso de habilidades
 # - Configurar los turnos de los jugadores
-# - Configurar la eliminación de los jugadores al perder
+# - Configurar el uso de habilidades 4/9
 # - Administrar excepciones y errores
-# - Configurar el chat para evitar que se envíen mensajes comandos manualmente
-# - Comprobar si realmente es necesaria la validación de comandos por el servidor o solo mantener una retransmisión.
