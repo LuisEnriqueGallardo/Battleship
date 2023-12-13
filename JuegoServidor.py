@@ -5,6 +5,7 @@ import threading
 import time
 from Modulos import obtener_ip
 from PyQt5.QtCore import pyqtSignal, QObject
+from ColoresConsola import Colores
 
 class QJugador(QObject):
     """
@@ -102,25 +103,12 @@ class QJugador(QObject):
                 self.conexion.send(mensaje.encode())
                 self.mensajeEnviado.emit(f"{self.nombre}: {mensaje}")            
             except ConnectionResetError:
-                return print("Error de conexión")
-        
-    def enviar_tablero(self):
-        """Envía el tablero al servidor. Para que el servidor lo envíe a los demás jugadores.
-        """
-        for renglon in range(10):
-            for columna in range(10):
-                contenido = self.tablero[renglon][columna]
-                if contenido.disparado == True:
-                    self.estadoDelTablero.append(contenido.row, contenido.column)
-
-        mensaje = f"//actualizarTablero {self.nombre} {json.dumps(self.tablero)}"
-        self.escribir(mensaje)
+                return print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}{Colores.RESET}: Error de conexión")
 
 class Cliente:
     """
     Administra los datos del cliente y el proceso de recepción y envío de datos desde y hacía él.
     """
-
     def __init__(self, conn, servidor):
         self.conn = conn
         self.servidor = servidor
@@ -237,6 +225,12 @@ class Servidor(QObject):
             if mensaje.startswith("//"):
                 # Aquí puedes implementar la lógica para procesar comandos
                 comando = mensaje[2:]
+                if ";" in comando:
+                    comando = comando.split(";")
+                    print(f"{Colores.NARANJA}LOG SERVIDOR{Colores.RESET}: Comando recibido: {comando}")
+                    for c in comando:
+                        comando = mensaje[2:]
+                        self.procesar_comando(c, cliente)
                 self.procesar_comando(comando, cliente)
             else:
                 mensaje = f"{cliente.nombre}: {mensaje}"
@@ -253,36 +247,54 @@ class Servidor(QObject):
             comando (JSON): Texto del comando.
             cliente (Cliente): Objeto cliente que envió el comando.
         """
+        if not self.juegoIniciado:
+            self.jugador_actual = self.lista_clientes[0]
+        
         # Extrae el comando y los datos del mensaje
         try:
             comando, datos = mensaje.split(" ", 1)
+            print(f'{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Comando recibido: {comando} {datos}')
         except ValueError:
             comando = mensaje
             datos = ""
-            print(f'LOG ERROR: {comando} {datos}')
-        
-        if comando.startswith("iniciarJuego"):
-            if not self.juegoIniciado:
-                # Si es el mensaje de inicio de juego, muestra el mensaje correcto
-                lista_nombres = json.loads(datos)
-                print(f"El juego ha comenzado. Jugadores: {', '.join(lista_nombres)}")
-        elif comando.startswith("turno"):
-            # Si es un mensaje de turno, muestra el mensaje correcto
-            self.cambiarTurno()
-        elif comando.startswith("desconectar"):
-            # Si es un mensaje de desconexión, muestra el mensaje correcto
-            self.avisar_desconexion(cliente)
-        elif comando.startswith("actualizarTablero"):
-            try:
-                self.actualizarTableros(datos)
-            except Exception as e:
-                print(f"Error al actualizar el tablero: {e}")
-        elif comando.startswith("eleccionFinalizada"):
+            print(f'{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: No se pudo procesar el comando: {comando} {datos}')
+            
+        if comando.startswith("eleccionFinalizada"):
             self.eleccionFinalizada()
             for c in self.lista_clientes:
                 c.escribir(f"{datos} ha terminado su elección.")
-        else:
-            print(f"Comando desconocido: {comando}")
+                    
+        print(f'{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Enviado por {cliente.nombre}. Jugador actual: {self.jugador_actual.nombre}')
+        if cliente.nombre == self.jugador_actual.nombre:
+            if comando.startswith("iniciarJuego"):
+                if not self.juegoIniciado:
+                    try:
+                        # Si es el mensaje de inicio de juego, muestra el mensaje correcto
+                        datos = datos.replace(";", '')
+                        lista_nombres = json.loads(datos)
+                        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: El juego ha comenzado. Jugadores: {', '.join(lista_nombres)}")
+                    except:
+                        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Error al cargar datos JSON en el juego")
+                    
+            elif comando.startswith("desconectar"):
+                # Si es un mensaje de desconexión, muestra el mensaje correcto
+                self.avisar_desconexion(cliente)
+            elif comando.startswith("actualizarTablero"):
+                try:
+                    datos = datos.replace(";", '')
+                    nombreytablero = json.loads(datos)
+                    self.actualizarTableros(nombreytablero)
+                except Exception as e:
+                    print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Error al actualizar el tablero: {e}")
+                    
+            elif comando.startswith("turno"):
+                if self.juegoIniciado:
+                    print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Procesando turno....")
+                    if cliente.nombre == self.jugador_actual.nombre:
+                        self.cambiarTurno()
+                    
+            else:
+                print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Comando desconocido: {comando}")
 
     def avisar_desconexion(self, cliente):
         """Avisa a todos los clientes que un cliente se ha desconectado y lo elimina de la lista de clientes conectados.
@@ -293,23 +305,23 @@ class Servidor(QObject):
         self.lista_clientes.remove(cliente)
         self.procesar_mensaje(f"{cliente.nombre} se ha desconectado", cliente, esAvisoServidor=True)
         self.jugadorCaido.emit(cliente.nombre)
+        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: {cliente.nombre} se ha desconectado")
     
     def iniciarJuego(self):
         """
         Inicia el juego y avisa a todos los clientes.
         """
-        self.cambiarTurno()
-        
         for c in self.lista_clientes:
                 c.escribir(f"//turno {self.jugador_actual.nombre}")
         self.juegoIniciado = True
+        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Enviando turno a los jugadores. Turno de {self.jugador_actual.nombre}")
             
-    def actualizarTableros(self, tablero):
+    def actualizarTableros(self, nombreytablero):
         """
         Actualiza el tablero de todos los clientes.
         """
         # Aqui, Tablero debe contener una lista con 2 valores: El primer valor es el nombre del jugador, El segundo valor es el tablero
-        mensaje = f"//actualizarTablero {tablero}"
+        mensaje = f"//actualizarTablero {nombreytablero}"
         for c in self.lista_clientes:
             c.escribir(mensaje)
             
@@ -317,15 +329,12 @@ class Servidor(QObject):
         """
         Maneja los turnos de los jugadores.
         """
-        if not self.juegoIniciado:
-            self.jugador_actual = random.choice(self.lista_clientes)
-            return
-        else:
-            turno = self.lista_clientes.index(self.jugador_actual)
-            if turno == len(self.lista_clientes):
-                turno = 0
-            self.jugador_actual = self.lista_clientes[turno + 1]
-            return
+        turnoactual = self.lista_clientes.index(self.jugador_actual)
+        turno = (turnoactual + 1) % len(self.lista_clientes)
+        self.jugador_actual = self.lista_clientes[turno]
+        
+        for c in self.lista_clientes:
+            c.escribir(f"//turno {self.jugador_actual.nombre}")
 
     def eleccionFinalizada(self):
         self.jugadoreslistos += 1

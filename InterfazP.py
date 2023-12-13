@@ -3,9 +3,10 @@ import random
 import sys
 from PyQt5.QtWidgets import QMessageBox, QApplication, QMainWindow, QWidget, QFrame, QGridLayout, QScrollArea, QHBoxLayout, QDialog, QPushButton, QVBoxLayout, QLabel, QStatusBar
 from PyQt5.QtCore import Qt
-from Modulos import QChat, QTableros, QNombreUsuario, QHabilidades, DialogoConexion, obtener_ip
+from Modulos import QChat, QTableros, QNombreUsuario, QHabilidades, DialogoConexion, obtener_ip, BotonBattleship
 from PyQt5.QtGui import QIcon
 from JuegoServidor import Servidor, QJugador
+from ColoresConsola import Colores
 
 class InterfazPrincipal(QMainWindow):
     """Interfaz Principal del juego donde se conectarán los modulos para iniciar el juego
@@ -49,6 +50,7 @@ class InterfazPrincipal(QMainWindow):
         # Lista para mantener los componentes del juego
         self.widgets = []
         self.jugadoresLista = [] #Lista de jugadores
+        self.listaTableros = [] #Lista de tableros
 
         # Dialogo para ingresar el nombre de usuario
         self.nombreUsuario = QNombreUsuario().abrirDialogo() #Nombre de usuario
@@ -93,6 +95,7 @@ class InterfazPrincipal(QMainWindow):
         self.tiroDobleActivo = None
         self.tiroCuadrupleActivo = None
         self.turnoActivo = None
+        self.estadoDelTablero = []
 
         #Componentes de los tableros e importación a la interfaz
         self.contenedorPrincipal.addLayout(self.contenedorJugadores, 0, 0)
@@ -179,6 +182,8 @@ class InterfazPrincipal(QMainWindow):
                     tableroEnemigo.etNombre.clicked.connect(lambda _, tablero=tableroEnemigo: self.mostrarTablero(tablero))
                     self.layouta = self.contenedorEnemigosH.layout()
                     self.layouta.insertWidget(0, tableroEnemigo)
+                    if not self.juegoIniciado:
+                        self.listaTableros.append(tableroEnemigo)
         except Exception as e:
             self.procesarMensaje(f'No se pudo actualizar el tablero de {jugador}. {e}')
 
@@ -202,9 +207,17 @@ class InterfazPrincipal(QMainWindow):
         """
         # Verificar si el mensaje es un comando especial
         mensaje = mensaje.strip()
-        if mensaje.startswith('//'):
+        if mensaje.startswith("//"):
+            # Aquí puedes implementar la lógica para procesar comandos
             comando = mensaje[2:]
-            self.procesar_comando(comando)
+            if ";" in comando:
+                comando = comando.split(";")
+                print(f'{Colores.VERDE}DIVIDIENDO COMANDO{Colores.RESET}: {comando}')
+                for c in comando:
+                    comando = c[2:]
+                    self.procesar_comando(c)
+            else:
+                self.procesar_comando(comando)
         for letra in mensaje:
             if letra == '/':
                 return
@@ -216,35 +229,42 @@ class InterfazPrincipal(QMainWindow):
         Args:
             comando (JSON): Comando recibido por el servidor, el cual llega como un JSON codificado en string.
         """
+        print(f'{Colores.AZUL}LOG INTERFAZ{Colores.RESET}: Comando recibido: {comando}')
+        
+        try:
+            comando, datos = comando.split(" ", 1)
+        except ValueError:
+            comando = comando
+            datos = ""
+            print(f'{Colores.ROJO}LOG INTERFAZ{Colores.RESET}: {comando} {datos}')
+            
         if comando.startswith("iniciarJuego"):
             # Extraer la lista de jugadores del mensaje
-            partes = comando.split(" ", 1)
-            if len(partes) > 1:
-                lista_json = partes[1]
-                lista_nombres = json.loads(lista_json)
-                self.jugadoresLista = lista_nombres
-                self.guardarJugadores()
-                self.iniciarJuego()
-            else:
-                print("Comando iniciarJuego sin lista de jugadores.")
-        if comando.startswith("actualizarTablero"):
             try:
-                tablero_json = comando.split(" ", 1)[1]
-                nombreRemitente = comando.split(" ", 1)[0]
+                datos = datos.replace(";", '')
+                lista_nombres = json.loads(datos)
+                self.jugadoresLista = lista_nombres
+                print(f'{Colores.AZUL}LOG INTERFAZ{Colores.RESET}: Iniciando juego con jugadores: {lista_nombres}')
+            except:
+                print(f'{Colores.ROJO}LOG INTERFAZ{Colores.RESET}: Error al cargar datos de jugadores')            
+            self.guardarJugadores()
+            self.iniciarJuego()
+        
+        if comando.startswith("actualizarTablero"):
+            print(f'{Colores.NARANJA}LOG INTERFAZ{Colores.RESET}: {datos}')
+            try:
+                tablero_json = datos.split(" ", 1)[1]
                 tablero = json.loads(tablero_json)
+                nombreRemitente = datos.split(" ", 1)[0]
                 self.recibirTableros(nombreRemitente, tablero)
             except Exception as e:
-                print(f"Error al actualizar el tablero: {e}")
-        
+                print(f"{Colores.AZUL}LOG INTERFAZ{Colores.RESET} {self.nombreUsuario}: Error al actualizar el tablero: {e}")
+                
         if comando.startswith("turno"):
-            jugadorActual = comando.split(" ", 1)[1]
-            if jugadorActual == self.nombreUsuario:
-                self.chat.chat_texto.appendPlainText(f'Es tu turno {self.nombreUsuario}')
+            datos = datos.replace(";", '')
+            if datos == self.nombreUsuario:
+                print(f'{Colores.AZUL}LOG INTERFAZ{Colores.RESET}: Turno recibido')
                 self.turnoActivo = True
-                self.evaluarTurno()
-            else:
-                self.chat.chat_texto.appendPlainText(f'Es el turno de {jugadorActual}')
-                self.turnoActivo = False
                 self.evaluarTurno()
 
     def conectar(self):
@@ -293,7 +313,7 @@ class InterfazPrincipal(QMainWindow):
         """Función para configurar la interfaz cuando se conecta al servidor. Se habilita el chat y se conecta la señal de enter para enviar mensajes.
         """
         mensaje = self.chat.controlarEnvioDeComandos
-        self.chat.chat_escritura.returnPressed.connect(lambda: self.cliente.escribir(self.chat.chat_escritura.text()))
+        self.chat.chat_escritura.returnPressed.connect(lambda: self.enviarComando(self.chat.chat_escritura.text()))
         self.chat.chat_escritura.returnPressed.connect(self.chat.chat_escritura.clear)
         self.chat.setEnabled(True)
         
@@ -318,14 +338,13 @@ class InterfazPrincipal(QMainWindow):
         """
         if not self.juegoIniciado:
             lista_json = json.dumps(self.jugadoresLista)
-            self.cliente.escribir(f'//iniciarJuego {lista_json}')
+            self.enviarComando(f'//iniciarJuego {lista_json};')
             self.btnIniciarJuego.setEnabled(False)
             self.construirJuego()
             self.crearEtiquetasDeJugadores()
             self.cliente.tablero = self.tableroPropio
             self.tableroPropio.elegirBarcos()
-            self.zonaHabilidades.alternarHabilidades(False)
-            
+            self.zonaHabilidades.alternarHabilidades(False)        
 
     def cerrarServidor(self):
         """Función para cerrar el servidor. Se cierra el servidor y se habilitan los botones para iniciar el servidor y el juego.
@@ -336,7 +355,7 @@ class InterfazPrincipal(QMainWindow):
         self.procesarMensaje(f'Servidor cerrado')
         self.barraEstado.showMessage(f'¡Bienvenido {self.nombreUsuario}!')
 
-    def recibirTableros(self, nombre, tablero):
+    def recibirTableros(self, nombre, tableroRecibido):
         """Recibe el nombre de cada cliente y el tablero de estos luego de que el servidor los reenvío. En lugar de recibir el objeto completo
         recibe solamente el estado de los botones activos.
 
@@ -344,17 +363,61 @@ class InterfazPrincipal(QMainWindow):
             nombre (str): nombre del jugador que envía el tablero
             tablero (list): Lista de botones con contenido relevante para el jugador
         """
-        for tablero in self.contenedorEnemigosH.findChildren(QTableros):
-            if tablero.etNombre.text() == nombre:
-                for botonActivo in tablero:
-                    boton = tablero[botonActivo]
-                    boton.disparado = True
+        
+        for tableroJugador in self.listaTableros:
+            if tableroJugador.etNombre.text() == nombre:
+                for botonViejo in tableroJugador.casillas:
+                    for parametros in tableroRecibido:
+                        botonNuevo = BotonBattleship(parametros[0], parametros[1])
+                        botonNuevo.barco = parametros[2]
+                        botonNuevo.hundido = parametros[3]
+                        botonNuevo.disparado = parametros[4]
+                        if botonViejo.row == botonNuevo.row and botonViejo.col == botonNuevo.col:
+                            if botonNuevo.disparado:
+                                botonViejo.setStyleSheet('background-color: #B22222;')
+                            if botonNuevo.hundido:
+                                botonViejo.setStyleSheet('background-color: #000000;')
+
         if nombre == self.nombreUsuario:
-            for botonActivo in tablero:
-                boton = self.tableroPropio[botonActivo]
-                boton.disparado = True
-                if botonActivo in self.tableroPropio.barco:
-                    boton.setStyleSheet('background-color: #B22222;')
+            for botonViejo in tableroJugador.casillas:
+                    for parametros in tableroRecibido:
+                        botonNuevo = BotonBattleship(parametros[0], parametros[1])
+                        botonNuevo.barco = parametros[2]
+                        botonNuevo.hundido = parametros[3]
+                        botonNuevo.disparado = parametros[4]
+                        if botonViejo.row == botonNuevo.row and botonViejo.col == botonNuevo.col:
+                            if botonNuevo.disparado:
+                                if botonViejo.barco:
+                                    botonViejo.hundido = True
+                                    botonViejo.setStyleSheet('background-color: #000000;')
+                                else:
+                                    botonViejo.disparado = True
+
+    def enviar_tablero(self, habilidadUsada = None):
+            """Envía el tablero al servidor. Para que el servidor lo envíe a los demás jugadores.
+            """
+            for boton in self.cliente.tablero.casillas:
+                if boton.disparado:
+                    self.estadoDelTablero.append([boton.row, boton.col, boton.barco, boton.hundido, boton.disparado])
+                if boton.disparado and boton.barco:
+                    boton.hundido = True
+                    self.estadoDelTablero.append([boton.row, boton.col, boton.barco, boton.hundido, boton.disparado])
+
+            mensaje = f"//actualizarTablero {self.nombreUsuario} {json.dumps(self.estadoDelTablero)};"
+            self.enviarComando(mensaje)
+            
+            for tablero in self.listaTableros:
+                self.estadoDelTablero = []
+                for boton in tablero.casillas:
+                    if boton.disparado:
+                        self.estadoDelTablero.append([boton.row, boton.col, boton.barco, boton.hundido, boton.disparado])
+                    if boton.disparado and boton.barco:
+                        boton.hundido = True
+                        boton.setStyleSheet("background-color: #000000")
+                        self.estadoDelTablero.append([boton.row, boton.col, boton.barco, boton.hundido, boton.disparado])
+                        
+                mensaje = f"//actualizarTablero {tablero.etNombre.text()} {json.dumps(self.estadoDelTablero)};"
+                self.enviarComando(mensaje)
                 
     def usoDeHabilidades(self, habilidad):
         """Función para el uso de habilidades. 
@@ -376,6 +439,7 @@ class InterfazPrincipal(QMainWindow):
     def evaluarTurno(self):
         """Función para evaluar el turno del jugador. Se evalúa si el turno es del jugador propio o de un jugador enemigo.
         """
+        print(f'{Colores.AZUL}LOG INTERFAZ{Colores.RESET}: Evaluando turno')
         if self.turnoActivo:
             self.zonaHabilidades.alternarHabilidades(True)
             for tablero in self.contenedorEnemigosH.findChildren(QTableros):
@@ -388,21 +452,34 @@ class InterfazPrincipal(QMainWindow):
     def finalizarTurno(self):
         """Función para finalizar el turno del jugador. Se evalúa si el turno es del jugador propio o de un jugador enemigo.
         """
-        self.cliente.escribir(f'//turno')
-        for tablero in self.contenedorEnemigosH.findChildren(QTableros):
+        for tablero in self.listaTableros:
             tablero.alternarTablero(False)
             for i in range(tablero.cuadricula.count()):
-                boton = tablero.cuadricula.itemAt(i).widget()
-                boton.setStyleSheet('background-color: #85C1E9')
+                boton = tablero.casillas[i]
+                if boton.disparado:
+                    boton.setStyleSheet('background-color: #B22222')
+                else:
+                    boton.setStyleSheet('background-color: #85C1E9')
+        self.enviarComando(f'//turno {self.nombreUsuario};')
+        self.enviar_tablero()
+        print(f'{Colores.AZUL}LOG INTERFAZ{Colores.RESET}: Turno finalizado')
 
     def eleccionFinalizada(self):
         """Función para finalizar la elección de barcos. Se envía un comando al servidor para que este lo reenvíe a los clientes y se finalice la elección de barcos.
         """
-        self.cliente.escribir(f'//eleccionFinalizada {self.nombreUsuario}')
+        self.enviarComando(f'//eleccionFinalizada {self.nombreUsuario};')
         self.tableroPropio.alternarTablero(False)
         self.zonaHabilidades.alternarHabilidades(False)
-        self.chat.chat_texto.appendPlainText(f'Esperando a que los demás jugadores elijan sus barcos...')
+        self.chat.chat_texto.appendPlainText('<span style="color: #45a5f5;">Esperando a que los demás jugadores elijan sus barcos...</span>')
 
+    def enviarComando(self, comando):
+        """Función para enviar comandos al servidor. Se envía un comando al servidor para que este lo reenvíe a los clientes.
+
+        Args:
+            comando (str): Comando a enviar
+        """
+        self.cliente.escribir(comando)
+        
 class TableroEnGrande(QDialog):
     """Creador de tablero en grande para manipularlo
     """
@@ -424,6 +501,17 @@ class TableroEnGrande(QDialog):
         contenedor.addWidget(botonSalir)
         self.setLayout(contenedor)
         
+        if self.parent().turnoActivo:
+            self.parent().turnoActivo = None
+            tablero.alternarTablero(True)
+            for i in range(tablero.cuadricula.count()):
+                boton = tablero.cuadricula.itemAt(i).widget()
+                boton.setStyleSheet('background-color: #80ff80')
+                boton.clicked.connect(lambda _, coordenadas=[boton.row, boton.col]:tablero.disparoOrdinario(coordenadas))
+                boton.clicked.connect(lambda: print(f'{Colores.CYAN}LOG ACCION{Colores.RESET}: DISPARO ORDINARIO'))
+                boton.clicked.connect(self.parent().finalizarTurno)
+                boton.clicked.connect(self.cerrarDialogo)
+                
         if self.parent().tiroDobleActivo:
             self.parent().tiroDobleActivo = None
             tablero.alternarTablero(True)
@@ -431,6 +519,10 @@ class TableroEnGrande(QDialog):
                 boton = tablero.cuadricula.itemAt(i).widget()
                 boton.setStyleSheet('background-color: #80ff80')
                 boton.clicked.connect(lambda _, coordenadas=[boton.row, boton.col]:tablero.tiroDoble(coordenadas))
+                boton.clicked.connect(lambda: print(f'{Colores.CYAN}LOG ACCION{Colores.RESET}: DISPARO DOBLE'))
+                boton.clicked.connect(self.parent().finalizarTurno)
+                boton.clicked.connect(self.cerrarDialogo)
+                
         elif self.parent().tiroCuadrupleActivo:
             self.parent().tiroCuadrupleActivo = None
             tablero.alternarTablero(True)
@@ -438,8 +530,9 @@ class TableroEnGrande(QDialog):
                 boton = tablero.cuadricula.itemAt(i).widget()
                 boton.setStyleSheet('background-color: #80ff80')
                 boton.clicked.connect(lambda _, coordenadas=[boton.row, boton.col]:tablero.tiroCuadruple(coordenadas))
-                
-                
+                boton.clicked.connect(lambda: print(f'{Colores.CYAN}LOG ACCION{Colores.RESET}: DISPARO CUADRUPLE'))
+                boton.clicked.connect(self.parent().finalizarTurno)
+                boton.clicked.connect(self.cerrarDialogo)
 
     # Cerrar el tablero en grande
     def cerrarDialogo(self):
@@ -463,3 +556,5 @@ if __name__ == "__main__":
 
 # TODO:
 # - Testear el juego para evitar bugs.
+
+# - RESOLVER RECEPCIÓN DE COMANDOS EN FUNCION PROCESAR MENSAJES

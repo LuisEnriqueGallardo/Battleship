@@ -82,10 +82,20 @@ class QTableros(QWidget):
             barcoButton.setToolTip(f'{self.barcosActivos[i]}. \n "CruceroDeAsalto" = 3 Espacios \n "Portaaviones" = 2 Espacios \n "Acorazado" = 1 Espacio')
             self.cuadricula.addWidget(barcoButton, i, 11)
             barco = self.barcosActivos[i]
+            barcoButton.clicked.connect(lambda: self.alternarBotones(False))
             barcoButton.clicked.connect(lambda _, barco=barco: self.seleccionarTipoBarco(barco))
             barcoButton.clicked.connect(lambda _, barco=barcoButton: barco.setVisible(False))
             barcoButton.setStyleSheet("background-color: #ec9b9d;")
             self.barcosDisponibles.append(barcoButton)
+    
+    def alternarBotones(self, estado = bool):
+        """Función para alternar el estado de los botones del tablero.
+
+        Args:
+            estado (boolean, optional): Recibe un booleano para realizar la activación o viceversa del botón. Defaults to bool.
+        """
+        for boton in range(self.barcosDisponibles.__len__()):
+            self.cuadricula.itemAtPosition(boton, 11).widget().setEnabled(estado)
     
     def seleccionarTipoBarco(self, barco):
         """Función para la elección del tipo de barco a colocar en el tablero
@@ -201,6 +211,7 @@ class QTableros(QWidget):
                 casilla.setStyleSheet("background-color: #85C1E9")
             if casilla.barco:
                 casilla.setStyleSheet("background-color: #0000ff")
+        self.alternarBotones(True)
                 
     def obtenerbarco(self, barco = None):
         """Función para otorgar un barco a un jugador.
@@ -271,7 +282,6 @@ class QTableros(QWidget):
             if boton.row == coordenadas[0] and boton.col == coordenadas[1]:
                 boton.setStyleSheet('background-color: #E74C3C;')
                 boton.disparado = True
-                return
         self.alternarTablero(False)
 
     def tiroDoble(self, coordenadas):
@@ -563,19 +573,8 @@ class BotonBattleship(QPushButton):
         super().__init__(parent)
         self.row = row
         self.col = col
-        self.eligiendo = None
         self.disparado = None  # Bandera para rastrear si se disparó en esta casilla
         self.barco = None
+        self.hundido = None
         self.extensiones = []
         self.setStyleSheet("background-color: #85C1E9")
-        
-    def shoot(self):
-        if not self.disparado:
-            # Cambiar la apariencia solo si no se ha disparado antes
-            self.setStyleSheet("background-color: #E74C3C")  # Cambia a color rojo, por ejemplo
-            self.disparado = True
-            print(f"¡Disparaste a la casilla ({self.row}, {self.col})!")
-
-
-    def cancelar(self):
-        self.close()
