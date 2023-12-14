@@ -313,7 +313,7 @@ class InterfazPrincipal(QMainWindow):
         self.cliente.conexionperdida.connect(self.procesarMensaje)
         self.cliente.clienteDesconectado.connect(self.procesarMensaje)
         self.cliente.conexionExitosa.connect(self.procesarMensaje)
-        self.cliente.mensajeEnviado.connect(self.procesarMensaje)
+        # self.cliente.mensajeEnviado.connect(self.procesarMensaje)
         self.cliente.inicioJuego.connect(self.iniciarJuego)
         self.cliente.inicioJuego.connect(self.servidor.iniciarJuego)
         self.cliente.conectar()

@@ -509,8 +509,9 @@ class QChat(QWidget):
     def controlarEnvioDeComandos(self):
         """Función para controlar el envío de mensajes en el chat evitando comandos no deseados.
         """
-        if self.chat_escritura.text().strip() != '//':
-            self.chat_escritura.replace('/', '')
+        mensaje = self.chat_escritura.text()
+        if '/' in mensaje.strip():
+            mensaje = mensaje.replace('/', '')
 
 class QNombreUsuario(QDialog):
     """Ventana para el ingreso del nombre de usuario
