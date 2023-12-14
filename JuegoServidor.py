@@ -3,9 +3,12 @@ import random
 import socket
 import threading
 import time
+
+import requests
 from Modulos import obtener_ip
 from PyQt5.QtCore import pyqtSignal, QObject
 from ColoresConsola import Colores
+from datetime import datetime
 
 class QJugador(QObject):
     """
@@ -103,7 +106,7 @@ class QJugador(QObject):
                 self.conexion.send(mensaje.encode())
                 self.mensajeEnviado.emit(f"{self.nombre}: {mensaje}")            
             except ConnectionResetError:
-                return print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}{Colores.RESET}: Error de conexión")
+                return print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}{Colores.RESET}: Error de conexión")
 
 class Cliente:
     """
@@ -185,14 +188,17 @@ class Servidor(QObject):
         Args:
             max_clientes (int, optional): Valor de clientes a aceptar. Defaults to 3.
         """
-        self.server = socket.socket()
-        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server.bind((self.ip, self.puerto))
-        self.server.listen(max_clientes)
-        self.servidorIniciado.emit(f"Servidor iniciado en {self.ip}:{self.puerto}")
-        self.flag_desconectar = False
-        self.hilo_aceptar_clientes = threading.Thread(target=self.aceptar_clientes, daemon=True)
-        self.hilo_aceptar_clientes.start()
+        try:
+            self.server = socket.socket()
+            self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server.bind((self.ip, self.puerto))
+            self.server.listen(max_clientes)
+            self.servidorIniciado.emit(f"Servidor iniciado en {self.ip}:{self.puerto}")
+            self.flag_desconectar = False
+            self.hilo_aceptar_clientes = threading.Thread(target=self.aceptar_clientes, daemon=True)
+            self.hilo_aceptar_clientes.start()
+        except OSError:
+            raise RuntimeError("No se pudo iniciar el servidor")
 
     def aceptar_clientes(self):
         """Hilo de ejecución que acepta clientes y los agrega a la lista de clientes conectados.
@@ -224,13 +230,16 @@ class Servidor(QObject):
         else:
             if mensaje.startswith("//"):
                 # Aquí puedes implementar la lógica para procesar comandos
+                if ";" in mensaje:
+                    comandos = mensaje.split(";")
+                    print(f"{Colores.NARANJA}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Mensaje recibido: {comandos}")
+                    for c in comandos:
+                        c = c[2:]
+                        if c.strip() != "":
+                            print(f"{Colores.BLANCO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Procesando comando: {c}.")
+                            self.procesar_comando(c, cliente)
+                    return
                 comando = mensaje[2:]
-                if ";" in comando:
-                    comando = comando.split(";")
-                    print(f"{Colores.NARANJA}LOG SERVIDOR{Colores.RESET}: Comando recibido: {comando}")
-                    for c in comando:
-                        comando = mensaje[2:]
-                        self.procesar_comando(c, cliente)
                 self.procesar_comando(comando, cliente)
             else:
                 mensaje = f"{cliente.nombre}: {mensaje}"
@@ -247,54 +256,75 @@ class Servidor(QObject):
             comando (JSON): Texto del comando.
             cliente (Cliente): Objeto cliente que envió el comando.
         """
-        if not self.juegoIniciado:
-            self.jugador_actual = self.lista_clientes[0]
-        
-        # Extrae el comando y los datos del mensaje
         try:
-            comando, datos = mensaje.split(" ", 1)
-            print(f'{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Comando recibido: {comando} {datos}')
-        except ValueError:
-            comando = mensaje
-            datos = ""
-            print(f'{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: No se pudo procesar el comando: {comando} {datos}')
+            if not self.juegoIniciado:
+                self.jugador_actual = self.lista_clientes[0]
+            # Extrae el comando y los datos del mensaje
+            try:
+                comando, datos = mensaje.split(" ", 1)
+                print(f'{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime("%H:%M:%S")}{Colores.RESET}: Comando procesado: {comando} {datos}')
+            except ValueError:
+                comando = mensaje
+                datos = ""
+                print(f'{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime("%H:%M:%S")}{Colores.RESET}: No se pudo procesar el comando: {comando} {datos}')
+                
+            if comando.startswith("eleccionFinalizada"):
+                self.eleccionFinalizada()
+                for c in self.lista_clientes:
+                    if c != cliente:
+                        print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: {c.nombre} ha terminado su elección. Enviando aviso a {c.nombre}")
+                        c.escribir(f"{datos} ha terminado su elección.")
+                        
+            if comando.startswith("finDelJuego"):
+                for c in self.lista_clientes:
+                    if c != cliente:
+                        c.escribir(f"{datos} ha perdido.")
+                        try:
+                            self.lista_clientes.remove(cliente)
+                        except ValueError:
+                            pass
             
-        if comando.startswith("eleccionFinalizada"):
-            self.eleccionFinalizada()
-            for c in self.lista_clientes:
-                c.escribir(f"{datos} ha terminado su elección.")
+            if cliente.nombre == self.jugador_actual.nombre:
+                if comando.startswith("iniciarJuego"):
+                    if not self.juegoIniciado:
+                        try:
+                            # Si es el mensaje de inicio de juego, muestra el mensaje correcto
+                            datos = datos.replace(";", '')
+                            lista_nombres = json.loads(datos)
+                            print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: El juego ha comenzado. Jugadores: {', '.join(lista_nombres)}")
+                            for c in self.lista_clientes:
+                                if c != cliente:
+                                    c.escribir(f"//iniciarJuego {datos}")
+                        except:
+                            print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Error al cargar datos JSON en el juego")
+                        
+                elif comando.startswith("desconectar"):
+                    # Si es un mensaje de desconexión, muestra el mensaje correcto
+                    self.avisar_desconexion(cliente)
                     
-        print(f'{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Enviado por {cliente.nombre}. Jugador actual: {self.jugador_actual.nombre}')
-        if cliente.nombre == self.jugador_actual.nombre:
-            if comando.startswith("iniciarJuego"):
-                if not self.juegoIniciado:
+                elif comando.startswith("actualizarTablero") or comando.startswith("//actualizarTablero"):
                     try:
-                        # Si es el mensaje de inicio de juego, muestra el mensaje correcto
+                        if comando.startswith("//"):
+                            comando = comando[2:]
                         datos = datos.replace(";", '')
-                        lista_nombres = json.loads(datos)
-                        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: El juego ha comenzado. Jugadores: {', '.join(lista_nombres)}")
-                    except:
-                        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Error al cargar datos JSON en el juego")
-                    
-            elif comando.startswith("desconectar"):
-                # Si es un mensaje de desconexión, muestra el mensaje correcto
-                self.avisar_desconexion(cliente)
-            elif comando.startswith("actualizarTablero"):
-                try:
-                    datos = datos.replace(";", '')
-                    nombreytablero = json.loads(datos)
-                    self.actualizarTableros(nombreytablero)
-                except Exception as e:
-                    print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Error al actualizar el tablero: {e}")
-                    
-            elif comando.startswith("turno"):
-                if self.juegoIniciado:
-                    print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Procesando turno....")
-                    if cliente.nombre == self.jugador_actual.nombre:
-                        self.cambiarTurno()
-                    
-            else:
-                print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Comando desconocido: {comando}")
+                        nombreytablero = json.loads(datos)
+                        self.actualizarTableros(nombreytablero)
+                    except Exception as e:
+                        print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Error al actualizar el tablero: {e}")
+                        nombre = datos.split(" ", 1)[0]
+                        datos = datos.split(" ", 1)[1]
+                        self.actualizarTableros(nombre, datos)
+                        
+                elif comando.startswith("turno"):
+                    if self.juegoIniciado:
+                        print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Procesando turno....")
+                        if cliente.nombre == self.jugador_actual.nombre:
+                            self.cambiarTurno()
+                else:
+                    print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Comando desconocido: {comando}")
+        except Exception as e:
+            print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Error al procesar comando: {e}")
+            return
 
     def avisar_desconexion(self, cliente):
         """Avisa a todos los clientes que un cliente se ha desconectado y lo elimina de la lista de clientes conectados.
@@ -305,25 +335,28 @@ class Servidor(QObject):
         self.lista_clientes.remove(cliente)
         self.procesar_mensaje(f"{cliente.nombre} se ha desconectado", cliente, esAvisoServidor=True)
         self.jugadorCaido.emit(cliente.nombre)
-        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: {cliente.nombre} se ha desconectado")
+        self.evaluarJugadoresRestantes()
+        print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: {cliente.nombre} se ha desconectado")
     
     def iniciarJuego(self):
         """
         Inicia el juego y avisa a todos los clientes.
         """
         for c in self.lista_clientes:
-                c.escribir(f"//turno {self.jugador_actual.nombre}")
+            c.escribir(f"//turno {self.jugador_actual.nombre}")
         self.juegoIniciado = True
-        print(f"{Colores.ROJO}LOG SERVIDOR{Colores.RESET}: Enviando turno a los jugadores. Turno de {self.jugador_actual.nombre}")
+        print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Enviando turno a los jugadores. Turno de {self.jugador_actual.nombre}")
             
-    def actualizarTableros(self, nombreytablero):
+    def actualizarTableros(self, nombre, tablero):
         """
         Actualiza el tablero de todos los clientes.
         """
         # Aqui, Tablero debe contener una lista con 2 valores: El primer valor es el nombre del jugador, El segundo valor es el tablero
-        mensaje = f"//actualizarTablero {nombreytablero}"
+        mensaje = f"//actualizarTablero {nombre} {tablero}"
         for c in self.lista_clientes:
-            c.escribir(mensaje)
+            if c != self.jugador_actual:
+                c.escribir(mensaje)
+                print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Enviando tablero a {c.nombre}")
             
     def cambiarTurno(self):
         """
@@ -339,6 +372,20 @@ class Servidor(QObject):
     def eleccionFinalizada(self):
         self.jugadoreslistos += 1
         if self.jugadoreslistos == len(self.lista_clientes):
+            print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Todos los jugadores han terminado su elección. {self.jugadoreslistos,  len(self.lista_clientes)}")
             self.iniciarJuego()
-        
+            
+    def evaluarJugadoresRestantes(self):
+        """
+        Evalua si quedan jugadores en la partida.
+        """
+        if len(self.lista_clientes) == 1:
+            self.procesar_comando("finDelJuego", cliente=self.lista_clientes[0])
+            self.procesar_mensaje("Juego finalizado por falta de jugadores", cliente=None, esAvisoServidor=True)
+            self.lista_clientes.remove(self.lista_clientes[0])
+            self.juegoIniciado = False
+            self.jugadoreslistos = 0
+            print(f"{Colores.ROJO}LOG SERVIDOR {datetime.now().strftime('%H:%M:%S')}{Colores.RESET}: Fin del juego")
+            self.server.close()
+            
 ip = obtener_ip()

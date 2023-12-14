@@ -21,7 +21,7 @@ class QTableros(QWidget):
         botonesActivos = Booleano (Activa los botones del tablero)
         barcosActivos = List (Lista con los barcos de cada jugador (QJugador.barcos))
     """
-    def __init__(self, parent=None, botonesActivos = True, barcosActivos = ['CruceroDeAsalto', 'CruceroDeAsalto', 'Portaaviones', 'Portaaviones', 'Acorazado', 'Acorazado', 'Acorazado']):
+    def __init__(self, parent=None, botonesActivos = True, barcosActivos = ['CruceroDeAsalto', 'CruceroDeAsalto', 'Portaaviones','Portaaviones', 'Acorazado',  'Acorazado', 'Acorazado']):
         super().__init__(parent)
         # Variables para operaciones futuras
         self.activarBotones = botonesActivos
@@ -44,7 +44,7 @@ class QTableros(QWidget):
         self.cuadricula = QGridLayout(contenedorPrincipal)
         self.cuadricula.setSpacing(0)
 
-        self.orientacion = QPushButton('—')
+        self.orientacion = QPushButton('⇀')
         self.orientacion.setFixedSize(30, 30)
         self.orientacion.setToolTip('Horizontal')
         self.orientacion.clicked.connect(self.cambiarOrientacion)
@@ -66,11 +66,11 @@ class QTableros(QWidget):
     def cambiarOrientacion(self):
         """Alterna la orientación de colocación de los barcos en el tablero.
         """
-        if self.orientacion.text() == '┃':
-            self.orientacion.setText('—')
+        if self.orientacion.text() == '⇂':
+            self.orientacion.setText('⇀')
             self.orientacion.setToolTip('Horizontal')
         else:
-            self.orientacion.setText('┃')
+            self.orientacion.setText('⇂')
             self.orientacion.setToolTip('Vertical')
 
     def elegirBarcos(self):
@@ -87,6 +87,7 @@ class QTableros(QWidget):
             barcoButton.clicked.connect(lambda _, barco=barcoButton: barco.setVisible(False))
             barcoButton.setStyleSheet("background-color: #ec9b9d;")
             self.barcosDisponibles.append(barcoButton)
+        print(len(self.barcosDisponibles))
     
     def alternarBotones(self, estado = bool):
         """Función para alternar el estado de los botones del tablero.
@@ -123,54 +124,57 @@ class QTableros(QWidget):
             tipoBarco (str): Nombre del barco a colocar.
             orientacion (str): La orientación es una variable que contiene la orientación del barco a colocar.
         """
-        # Determina el tamaño del barco basado en el tipo de barco
-        if tipoBarco == "CruceroDeAsalto":
-            self.tamanoBarco = 3
-            self.barcoActivo = 'CruceroDeAsalto'
-        elif tipoBarco == "Portaaviones":
-            self.tamanoBarco = 2
-            self.barcoActivo = 'Portaaviones'
-        elif tipoBarco == "Acorazado":
-            self.tamanoBarco = 1
-            self.barcoActivo = 'Acorazado'
+        try:
+            # Determina el tamaño del barco basado en el tipo de barco
+            if tipoBarco == "CruceroDeAsalto":
+                self.tamanoBarco = 3
+                self.barcoActivo = 'CruceroDeAsalto'
+            elif tipoBarco == "Portaaviones":
+                self.tamanoBarco = 2
+                self.barcoActivo = 'Portaaviones'
+            elif tipoBarco == "Acorazado":
+                self.tamanoBarco = 1
+                self.barcoActivo = 'Acorazado'
 
-        # Obtiene la fila y la columna de la casilla seleccionada
-        fila = botonElegido.row % 10
-        columna = botonElegido.col % 10
+            # Obtiene la fila y la columna de la casilla seleccionada
+            fila = botonElegido.row % 10
+            columna = botonElegido.col % 10
 
-       # Verifica si hay suficientes casillas libres en la dirección deseada
-        if self.verificarCasillasLibres(fila, columna, orientacion):
-            listaProvisionalDePosiciones = []
-            # Coloca el barco en las casillas correspondientes
-            if orientacion == "Horizontal":
-                for i in range(self.tamanoBarco):
-                    self.casillas[fila * 10 + columna + i].barco = True
-                    self.casillas[fila * 10 + columna + i].setStyleSheet("background-color: #0000ff;")
-                    botonElegido.extensiones.append(self.casillas[fila * 10 + columna + i])
+        # Verifica si hay suficientes casillas libres en la dirección deseada
+            if self.verificarCasillasLibres(fila, columna, orientacion):
+                listaProvisionalDePosiciones = []
+                # Coloca el barco en las casillas correspondientes
+                if orientacion == "Horizontal":
+                    for i in range(self.tamanoBarco):
+                        self.casillas[fila * 10 + columna + i].barco = True
+                        self.casillas[fila * 10 + columna + i].setStyleSheet("background-color: #0000ff;")
+                        botonElegido.extensiones.append(self.casillas[fila * 10 + columna + i])
+                        
+                        listaProvisionalDePosiciones.append([self.casillas[fila * 10 + columna + i].row,  self.casillas[fila * 10 + columna + i].col])
+                        self.eleccionFinalizada()
+                    self.listaDePosiciones.append(listaProvisionalDePosiciones)
+                    self.barcosDisponibles.pop(0)
+
                     
-                    listaProvisionalDePosiciones.append([self.casillas[fila * 10 + columna + i].row,  self.casillas[fila * 10 + columna + i].col])
-                    self.eleccionFinalizada()
-                self.listaDePosiciones.append(listaProvisionalDePosiciones)
-                self.barcosDisponibles.pop(0)
-
-                
-            elif orientacion == "Vertical":
-                for i in range(self.tamanoBarco):                    
-                    self.casillas[(fila + i) * 10 + columna].barco = True
-                    self.casillas[(fila + i) * 10 + columna].setStyleSheet("background-color: #0000ff;")
-                    botonElegido.extensiones.append(self.casillas[(fila + i) * 10 + columna])
+                elif orientacion == "Vertical":
+                    for i in range(self.tamanoBarco):                    
+                        self.casillas[(fila + i) * 10 + columna].barco = True
+                        self.casillas[(fila + i) * 10 + columna].setStyleSheet("background-color: #0000ff;")
+                        botonElegido.extensiones.append(self.casillas[(fila + i) * 10 + columna])
+                        
+                        listaProvisionalDePosiciones.append([  self.casillas[(fila + i) * 10 + columna].row,   self.casillas[(fila + i) * 10 + columna].col])
+                        self.eleccionFinalizada()
+                        self.listaDePosiciones.append(listaProvisionalDePosiciones)
+                    self.barcosDisponibles.pop(0)
                     
-                    listaProvisionalDePosiciones.append([  self.casillas[(fila + i) * 10 + columna].row,   self.casillas[(fila + i) * 10 + columna].col])
-                    self.eleccionFinalizada()
-                self.listaDePosiciones.append(listaProvisionalDePosiciones)
-                self.barcosDisponibles.pop(0)
-                
-            if self.barcosDisponibles.__len__() == 0:
-                self.alternarTablero(False)
-                self.barcosElegidos.emit()
-        else:
-            pass
-        
+                if self.barcosDisponibles.__len__() == 0:
+                    self.alternarTablero(False)
+                    self.barcosElegidos.emit()
+            else:
+                pass
+        except Exception as e:
+            print(f'Se produjo un error: {e}')
+            
     def verificarCasillasLibres(self, fila, columna, orientacion):
         """Función para verificar si las casillas están libres para colocar el barco y caben en el tablero.
 
@@ -233,7 +237,8 @@ class QTableros(QWidget):
         barcoButton.setToolTip(f'{self.barcosActivos[aleatorio]}. \n "CruceroDeAsalto" = 3 Espacios \n "Portaaviones" = 2 Espacios \n "Acorazado" = 1 Espacio')
         self.cuadricula.addWidget(barcoButton, 0, 11)
         barco = self.barcosActivos[aleatorio]
-        barcoButton.clicked.connect(lambda _, barco=barco: self.seleccionarTipoBarco(barco))
+        barcoButton.clicked.connect(lambda _, barco = barcoButton: self.barcosDisponibles.append(barco))
+        barcoButton.clicked.connect(lambda _, barco=barco: self.seleccionarTipoBarco(barco))        
         barcoButton.clicked.connect(lambda _, barco=barcoButton: barco.setVisible(False))
             
     def reposicionamiento(self):
@@ -313,28 +318,31 @@ class QTableros(QWidget):
     def tiroCuadruple(self, coordenadas):
         for boton in self.casillas:
             if boton.row == coordenadas[0] and boton.col == coordenadas[1]:
-                coordenadaBoton2 = self.casillas.index(boton) + 1
-                coordenadaBoton3 = self.casillas.index(boton) + 10
-                coordenadaBoton4 = self.casillas.index(boton) + 11
-                self.alternarTablero(False)
-                
-                boton.setStyleSheet('background-color: #E74C3C;')
-                boton.disparado = True
-                
-                self.casillas[coordenadaBoton2].disparado = True
-                self.casillas[coordenadaBoton2].setStyleSheet("background-color: #E74C3C")
-                
-                self.casillas[coordenadaBoton3].disparado = True
-                self.casillas[coordenadaBoton3].setStyleSheet("background-color: #E74C3C")
-                
-                self.casillas[coordenadaBoton4].disparado = True
-                self.casillas[coordenadaBoton4].setStyleSheet("background-color: #E74C3C")
-                
-                for boton in self.casillas:
-                    if boton.disparado is None:
-                        boton.setStyleSheet("background-color: #85C1E9")
+                try:
+                    coordenadaBoton2 = self.casillas.index(boton) + 1
+                    coordenadaBoton3 = self.casillas.index(boton) + 10
+                    coordenadaBoton4 = self.casillas.index(boton) + 11
+                    self.alternarTablero(False)
+                    
+                    boton.setStyleSheet('background-color: #E74C3C;')
+                    boton.disparado = True
+                    
+                    self.casillas[coordenadaBoton2].disparado = True
+                    self.casillas[coordenadaBoton2].setStyleSheet("background-color: #E74C3C")
+                    
+                    self.casillas[coordenadaBoton3].disparado = True
+                    self.casillas[coordenadaBoton3].setStyleSheet("background-color: #E74C3C")
+                    
+                    self.casillas[coordenadaBoton4].disparado = True
+                    self.casillas[coordenadaBoton4].setStyleSheet("background-color: #E74C3C")
+                    
+                    for boton in self.casillas:
+                        if boton.disparado is None:
+                            boton.setStyleSheet("background-color: #85C1E9")
 
-                return   
+                    return   
+                except:
+                    pass
 
     def alternarTablero(self, estado = bool, validarBarcos = None):
         """Función para deshabilitar el tablero del jugador.
@@ -384,7 +392,7 @@ class QHabilidades(QWidget):
         """Algoritmo para generar las habilidades de forma aleatoria en base a la lista de habilidades existentes.
         """
         # listaHabilidades = ['Acorazar','Ataque aereo', 'Bombardero', 'Cañon doble', 'Hackeo terminal', 'Llamado a refuerzos', 'Radar satelital', 'Reconocimiento aereo', 'Reposicionamiento']
-        listaHabilidades = ['Ataque Aereo']
+        listaHabilidades = ['Llamado a refuerzos', 'Reposicionamiento']
         for _ in range(3):
             botonDeHabilidad = QPushButton()
             # botonDeHabilidad.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
@@ -407,7 +415,7 @@ class QHabilidades(QWidget):
             self.HabilidadMaximizada = HabilidadEnGrande(self, habilidad, nombreIcono)
             self.HabilidadMaximizada.senalUsarHabilidad.connect(lambda n=nombre: self.avisarUsodeSenal(n))
             self.ventana_habilidad_abierta = self.HabilidadMaximizada
-            self.HabilidadMaximizada.exec()
+            self.HabilidadMaximizada.show()
             
     def avisarUsodeSenal(self, nombre):
         """Función para avisar que se usó la señal de habilidad
@@ -496,11 +504,13 @@ class QChat(QWidget):
         contenedor.addWidget(self.chat_texto)
         contenedor.addWidget(self.chat_escritura)
         
+        self.chat_escritura.textChanged.connect(self.controlarEnvioDeComandos)
+
     def controlarEnvioDeComandos(self):
         """Función para controlar el envío de mensajes en el chat evitando comandos no deseados.
         """
         if self.chat_escritura.text().strip() != '//':
-            return self.chat_escritura.text().strip()
+            self.chat_escritura.replace('/', '')
 
 class QNombreUsuario(QDialog):
     """Ventana para el ingreso del nombre de usuario
